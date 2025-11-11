@@ -1,5 +1,7 @@
 """Flask web app for Codebreaker"""
 
+# pylint: disable=import-error
+
 from flask import Flask, render_template
 
 
