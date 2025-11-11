@@ -12,6 +12,7 @@ flask = "*"
 black = "*"
 pytest = "*"
 tomli = "*"
+typing-extensions = "*"
 
 
 [requires]
