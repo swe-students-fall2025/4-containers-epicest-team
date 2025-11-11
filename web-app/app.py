@@ -1,22 +1,26 @@
+"""Flask web app for Codebreaker"""
+
 from flask import Flask, render_template
 
 
 def create_app():
-    #Application factory for password guess web app
-    app = Flask(__name__)
+    """Application factory for password guess web app"""
+    app_instance = Flask(__name__)
 
-    @app.route("/")
+    @app_instance.route("/")
     def index():
+        """Render the main game page"""
         return render_template("index.html")
 
-    @app.route("/dashboard")
+    @app_instance.route("/dashboard")
     def dashboard():
+        """Render the dashboard page"""
         return render_template("dashboard.html")
 
 
-    return app
+    return app_instance
 
 
 if __name__ == "__main__":
-    app = create_app()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    flask_app = create_app()
+    flask_app.run(host="0.0.0.0", port=5000, debug=True)
