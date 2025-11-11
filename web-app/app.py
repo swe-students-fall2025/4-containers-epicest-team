@@ -19,7 +19,6 @@ def create_app():
         """Render the dashboard page"""
         return render_template("dashboard.html")
 
-
     return app_instance
 
 
