@@ -11,6 +11,8 @@ flask = "*"
 [dev-packages]
 black = "*"
 pytest = "*"
+tomli = "*"
+
 
 [requires]
 python_version = "3.10"
