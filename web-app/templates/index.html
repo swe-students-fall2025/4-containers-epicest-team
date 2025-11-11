@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Passphrase Guessr — Game{% endblock %}
+
+{% block content %}
+<div class="game-layout">
+  <section class="game-card">
+    <h1 class="game-title">Guess the Passphrase</h1>
+    <p class="game-subtitle">
+      Press <span class="highlight">Record</span>, say your guess, and we’ll check it against the secret passphrase.
+    </p>
+
+    <div class="info-row">
+      <div class="info-label">Status:</div>
+      <div id="status-text" class="info-value">Waiting to start...</div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-label">Attempts left:</div>
+      <div id="attempts-left" class="info-value">3</div>
+    </div>
+
+    <button id="record-btn" class="btn-primary">
+      🎙 Start Recording
+    </button>
+
+    <div class="output-box">
+      <h2 class="output-label">Your last guess:</h2>
+      <p id="guess-text" class="output-text">—</p>
+    </div>
+
+    <div id="result-message" class="result-message">
+      <!-- JS will inject feedback here -->
+    </div>
+  </section>
+
+  <section class="side-card">
+    <h2>How it works</h2>
+    <ol class="steps-list">
+      <li>Click <strong>Start Recording</strong>.</li>
+      <li>Say your guess clearly into the mic.</li>
+      <li>Our ML client processes the audio and checks your guess.</li>
+      <li>Track results + attempts in real-time.</li>
+    </ol>
+    <p class="note-text">
+      This page is your frontend. The speech recognition + database logic will plug into
+      these elements via <code>main.js</code>.
+    </p>
+  </section>
+</div>
+{% endblock %}
