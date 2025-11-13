@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 pylint = "*"
 black = "*"
+speechrecognition = "==3.14.3"
+pyaudio = "*"
 
 [dev-packages]
 
