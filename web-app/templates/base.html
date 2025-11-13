@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Codebreaker{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Custom styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="app-body">
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a class="navbar-brand" href="/">Codebreaker</a>
+      <ul class="nav-links">
+        <li><a href="/">Game</a></li>
+        <li><a href="/dashboard">Dashboard</a></li>
+      </ul>
+    </div>
+  </nav>
+
+<!-- Page content -->
+  <main class="main-wrapper">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- JS hook -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

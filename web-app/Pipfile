@@ -5,9 +5,13 @@ name = "pypi"
 
 [packages]
 pylint = "*"
-black = "*"
+flask = "*"
 
 [dev-packages]
+black = "*"
+pytest = "*"
+tomli = "*"
+typing-extensions = "*"
 
 [requires]
 python_version = "3.10"
