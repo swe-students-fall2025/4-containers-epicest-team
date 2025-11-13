@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  ml-client:
+    name: Machine Learning Client CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: machine-learning-client
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install black pylint pytest pytest-cov
+
+      - name: Lint with pylint
+        run: |
+          pylint --exit-zero $(git ls-files '*.py')
+
+      - name: Check formatting with black
+        run: |
+          black --check .
+
+      - name: Run unit tests with coverage
+        run: |
+          pytest --cov=./ --cov-report=xml --cov-fail-under=80
+
+      - name: Build Docker image
+        run: |
+          docker build -t ml-client-test .
+
+  web-app:
+    name: Web App CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install black pylint pytest pytest-flask pytest-cov
+
+      - name: Lint with pylint
+        run: |
+          pylint --exit-zero $(git ls-files '*.py')
+
+      - name: Check formatting with black
+        run: |
+          black --check .
+
+      - name: Run unit tests with coverage
+        run: |
+          pytest --cov=./ --cov-report=xml --cov-fail-under=80
+
+      - name: Build Docker image
+        run: |
+          docker build -t web-app-test .
