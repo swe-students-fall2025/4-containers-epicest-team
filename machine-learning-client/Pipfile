@@ -7,7 +7,7 @@ verify_ssl = true
 pylint = "*"
 black = "*"
 speechrecognition = "==3.14.3"
-pyaudio = "*"
+pyaudio = {version = "*", markers = "sys_platform == 'darwin'"}
 
 [dev-packages]
 

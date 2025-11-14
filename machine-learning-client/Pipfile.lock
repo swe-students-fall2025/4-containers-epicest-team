@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ec5041142cc40b1204d146b104abf267b3700baaaa0c9cbd987f1358f09bbfb8"
+            "sha256": "61c2b8add0ee6aa14098b4143ae71e917d0846647724db863124fa45aba5908c"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -192,7 +192,7 @@
                 "sha256:bbeb01d36a2f472ae5ee5e1451cacc42112986abe622f735bb870a5db77cf903",
                 "sha256:f745109634a7c19fa4d6b8b7d6967c3123d988c9ade0cd35d4295ee1acdb53e9"
             ],
-            "index": "pypi",
+            "markers": "sys_platform == 'darwin'",
             "version": "==0.2.14"
         },
         "pylint": {
