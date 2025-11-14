@@ -1,4 +1,7 @@
-"""Microphone recording utilities for the ML client."""
+"""Microphone recording utilities for the ML client.
+"""
+
+# pylint: disable=invalid-name
 
 from __future__ import annotations
 
@@ -6,7 +9,6 @@ import datetime as dt
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-# Try to import sounddevice, but don't crash if PortAudio is missing (e.g. in CI)
 try:
     import sounddevice as sd  # type: ignore[import]
 
