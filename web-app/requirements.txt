@@ -11,3 +11,4 @@ pytest-cov
 black
 pylint
 coverage
+tomli
