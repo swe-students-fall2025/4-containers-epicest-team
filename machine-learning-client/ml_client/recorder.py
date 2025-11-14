@@ -1,5 +1,4 @@
-"""Microphone recording utilities for the ML client.
-"""
+"""Microphone recording utilities for the ML client."""
 
 from __future__ import annotations
 
