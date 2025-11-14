@@ -5,12 +5,15 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from unittest.mock import patch
+
 # Ensure the project root
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from main import main as run_main  # type: ignore[import]  # pylint: disable=wrong-import-position
+
+
 @patch("main.record_clip")
 def test_main_calls_record_clip_and_prints_summary(mock_record_clip, capsys):
     """main() should call record_clip and print a short summary."""

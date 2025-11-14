@@ -1,10 +1,13 @@
 """Tests for the microphone recorder module."""
+
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import patch
 
 from ml_client.recorder import record_clip, DEFAULT_SAMPLE_RATE, DEFAULT_CHANNELS
+
+
 @patch("ml_client.recorder.sf")
 @patch("ml_client.recorder.sd")
 def test_record_clip_returns_info_and_calls_write(mock_sd, mock_sf, tmp_path):
