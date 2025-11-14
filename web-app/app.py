@@ -7,9 +7,10 @@ from flask import Flask, render_template, request, jsonify
 # simple in-memory state just for now (will be replaced by Mongo later)
 GAME_STATE = {
     "attempts_left": 3,
-    "last_result": None,   # e.g. "pending", "correct", "incorrect"
+    "last_result": None,  # e.g. "pending", "correct", "incorrect"
     "last_guess": None,
 }
+
 
 def create_app():
     """Application factory for password guess web app"""
@@ -25,8 +26,7 @@ def create_app():
         """Render the dashboard page"""
         return render_template("dashboard.html")
 
-
-# API ROUTES (PLACEHOLDERS)
+    # API ROUTES (PLACEHOLDERS)
 
     @app_instance.route("/api/submit-guess", methods=["POST"])
     def submit_guess():
@@ -48,14 +48,17 @@ def create_app():
         if GAME_STATE["attempts_left"] > 0:
             GAME_STATE["attempts_left"] -= 1
 
-        return jsonify(
-            {
-                "message": "guess received (placeholder)",
-                "guess": guess,
-                "attempts_left": GAME_STATE["attempts_left"],
-                "result": GAME_STATE["last_result"],
-            }
-        ), 200
+        return (
+            jsonify(
+                {
+                    "message": "guess received (placeholder)",
+                    "guess": guess,
+                    "attempts_left": GAME_STATE["attempts_left"],
+                    "result": GAME_STATE["last_result"],
+                }
+            ),
+            200,
+        )
 
     @app_instance.route("/api/game-state", methods=["GET"])
     def game_state():
@@ -80,7 +83,6 @@ def create_app():
         GAME_STATE["last_guess"] = None
 
         return jsonify({"message": "game reset", **GAME_STATE}), 200
-
 
     return app_instance
 
