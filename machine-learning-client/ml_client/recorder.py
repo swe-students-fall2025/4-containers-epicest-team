@@ -1,23 +1,26 @@
-"""
-This  is responsible for
-- recording audio from the default microphone
-- saves as a .wav file on disk- local
+"""Microphone recording utilities for the ML client.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict, Optional
 
-import sounddevice as sd
-import soundfile as sf
+# Try to import sounddevice, but don't crash if PortAudio is missing (e.g. in CI)
+try:
+    import sounddevice as sd  # type: ignore[import]
 
-# Default recording settings — these are cross-platform.
-DEFAULT_SAMPLE_RATE = 16_000
-DEFAULT_CHANNELS = 1
-DEFAULT_DURATION_SECONDS = 4
+    SD_IMPORT_ERROR: Optional[BaseException] = None
+except OSError as err:  # PortAudio library not found
+    sd = None  # type: ignore[assignment]
+    SD_IMPORT_ERROR = err
 
+import soundfile as sf  # type: ignore[import]
+
+DEFAULT_SAMPLE_RATE = 16_000  # 16 kHz, good enough for speech
+DEFAULT_CHANNELS = 1  # mono audio
+DEFAULT_DURATION_SECONDS = 4  # seconds
 
 DEFAULT_OUTPUT_DIR = Path("recordings")
 
@@ -29,16 +32,18 @@ def record_clip(
     channels: int = DEFAULT_CHANNELS,
     output_dir: Path | str = DEFAULT_OUTPUT_DIR,
 ) -> Dict[str, Any]:
+    """Record audio from the default microphone and save as a .wav file."""
+    # If sounddevice/PortAudio is not available (e.g. on CI), fail cleanly
+    if sd is None:
+        msg = "Audio recording is not available: PortAudio / sounddevice is missing."
+        raise RuntimeError(msg) from SD_IMPORT_ERROR
 
-    # Make sure the directory exists
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Use timestamp in filename so each recording is unique
     timestamp = dt.datetime.utcnow().strftime("%Y%m%d-%H%M%S-%f")
     file_path = output_dir / f"recording-{timestamp}.wav"
 
-    # Number of frames to record
     num_frames = int(duration_seconds * sample_rate)
 
     print(f"[recorder] Recording {duration_seconds:.1f}s of audio...")
@@ -48,10 +53,9 @@ def record_clip(
         channels=channels,
         dtype="float32",
     )
-    sd.wait()  # Blocks until recording is finished
+    sd.wait()
     print(f"[recorder] Recording complete. Saving to {file_path}")
 
-    # Save the numpy array to a .wav file
     sf.write(str(file_path), recording, sample_rate)
 
     created_at = dt.datetime.utcnow()
