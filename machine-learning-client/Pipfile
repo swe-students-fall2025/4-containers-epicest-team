@@ -4,10 +4,12 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+[packages]
 pylint = "*"
 black = "*"
 speechrecognition = "==3.14.3"
-pyaudio = "*"
+pyaudio = {version = "*", markers = "sys_platform == 'darwin'"}
+
 
 [dev-packages]
 
