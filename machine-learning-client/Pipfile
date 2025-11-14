@@ -1,15 +1,13 @@
 [[source]]
+name = "pypi"
 url = "https://pypi.org/simple"
 verify_ssl = true
-name = "pypi"
 
-[packages]
 [packages]
 pylint = "*"
 black = "*"
 speechrecognition = "==3.14.3"
-pyaudio = {version = "*", markers = "sys_platform == 'darwin'"}
-
+pyaudio = "*"
 
 [dev-packages]
 
