@@ -1,13 +1,10 @@
 """Tests for the microphone recorder module."""
-
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import patch
 
 from ml_client.recorder import record_clip, DEFAULT_SAMPLE_RATE, DEFAULT_CHANNELS
-
-
 @patch("ml_client.recorder.sf")
 @patch("ml_client.recorder.sd")
 def test_record_clip_returns_info_and_calls_write(mock_sd, mock_sf, tmp_path):
@@ -21,7 +18,6 @@ def test_record_clip_returns_info_and_calls_write(mock_sd, mock_sf, tmp_path):
         channels=DEFAULT_CHANNELS,
         output_dir=tmp_path,
     )
-
     # Ensure sounddevice.rec and sounddevice.wait were called
     mock_sd.rec.assert_called_once()
     mock_sd.wait.assert_called_once()
@@ -39,7 +35,6 @@ def test_record_clip_returns_info_and_calls_write(mock_sd, mock_sf, tmp_path):
     assert "sample_rate" in info
     assert "channels" in info
     assert "created_at" in info
-
     assert Path(info["file_path"]).suffix == ".wav"
     assert info["duration_seconds"] == 1.0
     assert info["sample_rate"] == DEFAULT_SAMPLE_RATE
