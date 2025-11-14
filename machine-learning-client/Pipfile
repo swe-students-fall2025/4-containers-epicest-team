@@ -5,9 +5,9 @@ name = "pypi"
 
 [packages]
 pylint = "*"
-black = "*"
 sounddevice = "*"
 soundfile = "*"
+black = "*"
 
 [dev-packages]
 

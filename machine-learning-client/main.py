@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from ml_client.recorder import record_clip

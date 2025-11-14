@@ -1,7 +1,7 @@
 """
 This  is responsible for
 - recording audio from the default microphone
-- saves as a .wav file on disk- local 
+- saves as a .wav file on disk- local
 """
 
 from __future__ import annotations
@@ -14,9 +14,9 @@ import sounddevice as sd
 import soundfile as sf
 
 # Default recording settings — these are cross-platform.
-DEFAULT_SAMPLE_RATE = 16_000  
-DEFAULT_CHANNELS = 1          
-DEFAULT_DURATION_SECONDS = 4  
+DEFAULT_SAMPLE_RATE = 16_000
+DEFAULT_CHANNELS = 1
+DEFAULT_DURATION_SECONDS = 4
 
 
 DEFAULT_OUTPUT_DIR = Path("recordings")
@@ -29,7 +29,7 @@ def record_clip(
     channels: int = DEFAULT_CHANNELS,
     output_dir: Path | str = DEFAULT_OUTPUT_DIR,
 ) -> Dict[str, Any]:
-    
+
     # Make sure the directory exists
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
