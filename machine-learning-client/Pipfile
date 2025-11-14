@@ -10,6 +10,7 @@ soundfile = "*"
 black = "*"
 
 [dev-packages]
+tomli = "*"
 
 [requires]
 python_version = "3.10"
