@@ -3,17 +3,17 @@
 # pylint: disable=import-error, wrong-import-position
 
 
-#standard imports first
+# standard imports first
 import os
 import sys
 
-#fix import path so 'app' can be imported from parent directory
+# fix import path so 'app' can be imported from parent directory
 CURRENT_DIR = os.path.dirname(__file__)
 PARENT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 if PARENT_DIR not in sys.path:
     sys.path.insert(0, PARENT_DIR)
 
-#local imports AFTER path fix
+# local imports AFTER path fix
 from app import create_app
 
 
