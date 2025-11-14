@@ -1,14 +1,5 @@
 flask
-pymongo
-
-sounddevice
-soundfile
-
 pytest
-pytest-flask
-pytest-cov
-
-black
 pylint
+black
 coverage
-tomli
