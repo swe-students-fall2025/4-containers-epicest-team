@@ -8,6 +8,10 @@ pylint = "*"
 sounddevice = "*"
 soundfile = "*"
 black = "*"
+openai-whisper = "*"
+pytest = "*"
+python-dotenv = "*"
+pymongo = "*"
 
 [dev-packages]
 tomli = "*"
