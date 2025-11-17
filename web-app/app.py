@@ -25,6 +25,7 @@ PLAYER_STATES = {}
 
 DEFAULT_SECRET_PHRASE = "open sesame"
 
+
 def get_or_create_state(player_id: str):
     """Fetch or initialize the player's game state."""
     if player_id not in PLAYER_STATES:
@@ -36,13 +37,14 @@ def get_or_create_state(player_id: str):
         }
     return PLAYER_STATES[player_id]
 
+
 def create_app():
     """Application factory for password guess web app"""
     app_instance = Flask(__name__)
 
-    #-------------------------
-    #PLAYER ID COOKIE HANDLING
-    #-------------------------
+    # -------------------------
+    # PLAYER ID COOKIE HANDLING
+    # -------------------------
     @app_instance.before_request
     def ensure_player_id():
         """Ensure each user has a persistent anonymous UUID in a cookie."""
@@ -68,9 +70,9 @@ def create_app():
             )
         return response
 
-    #-------------------------
-    #HTML ROUTES
-    #-------------------------
+    # -------------------------
+    # HTML ROUTES
+    # -------------------------
     @app_instance.route("/")
     def index():
         """Render the main game page"""
@@ -81,9 +83,9 @@ def create_app():
         """Render the dashboard page"""
         return render_template("dashboard.html")
 
-    #-------------------------
-    #API ROUTES (PLACEHOLDERS)
-    #-------------------------
+    # -------------------------
+    # API ROUTES (PLACEHOLDERS)
+    # -------------------------
     @app_instance.route("/api/game-state", methods=["GET"])
     def game_state():
         """Return this player's current game state."""
@@ -106,19 +108,23 @@ def create_app():
         data = request.get_json() or {}
         guess = (data.get("guess", "")).strip()
 
-
         state = get_or_create_state(g.player_id)
 
         # No attempts left
         if state["attempts_left"] <= 0:
-            return jsonify({
-                "message": "No attempts left for this passphrase.",
-                "guess": guess,
-                "attempts_left": state["attempts_left"],
-                "result": "no_attempts",
-                "match": False,
-                "can_change_passphrase": False
-            }), 200
+            return (
+                jsonify(
+                    {
+                        "message": "No attempts left for this passphrase.",
+                        "guess": guess,
+                        "attempts_left": state["attempts_left"],
+                        "result": "no_attempts",
+                        "match": False,
+                        "can_change_passphrase": False,
+                    }
+                ),
+                200,
+            )
 
         # Consume one attempt
         state["attempts_left"] -= 1
@@ -127,14 +133,19 @@ def create_app():
         # Check correct guess
         if guess.lower() == state["secret_phrase"].lower():
             state["last_result"] = "correct"
-            return jsonify({
-                "message": "You guessed it! You can now set a new passphrase.",
-                "guess": guess,
-                "attempts_left": state["attempts_left"],
-                "result": "correct",
-                "match": True,
-                "can_change_passphrase": True
-            }), 200
+            return (
+                jsonify(
+                    {
+                        "message": "You guessed it! You can now set a new passphrase.",
+                        "guess": guess,
+                        "attempts_left": state["attempts_left"],
+                        "result": "correct",
+                        "match": True,
+                        "can_change_passphrase": True,
+                    }
+                ),
+                200,
+            )
 
         # Incorrect guess
         state["last_result"] = "incorrect"
@@ -143,14 +154,19 @@ def create_app():
         else:
             msg = "Incorrect guess. No attempts left."
 
-        return jsonify({
-            "message": msg,
-            "guess": guess,
-            "attempts_left": state["attempts_left"],
-            "result": "incorrect",
-            "match": False,
-            "can_change_passphrase": False
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": msg,
+                    "guess": guess,
+                    "attempts_left": state["attempts_left"],
+                    "result": "incorrect",
+                    "match": False,
+                    "can_change_passphrase": False,
+                }
+            ),
+            200,
+        )
 
     @app_instance.route("/api/set-passphrase", methods=["POST"])
     def set_passphrase():
@@ -169,11 +185,15 @@ def create_app():
         state["last_result"] = None
         state["last_guess"] = None
 
-        return jsonify({
-            "message": "New passphrase set. You have 3 attempts.",
-            "attempts_left": state["attempts_left"]
-        }), 200
-
+        return (
+            jsonify(
+                {
+                    "message": "New passphrase set. You have 3 attempts.",
+                    "attempts_left": state["attempts_left"],
+                }
+            ),
+            200,
+        )
 
     @app_instance.route("/api/reset", methods=["POST"])
     def reset_game():
@@ -184,13 +204,17 @@ def create_app():
             "last_guess": None,
             "secret_phrase": DEFAULT_SECRET_PHRASE,
         }
-        return jsonify({
-            "message": "Game reset.",
-            **PLAYER_STATES[g.player_id]
-        }), 200
+        return (
+            jsonify(
+                {
+                    "message": "Game reset.",
+                    **PLAYER_STATES[g.player_id],
+                }
+            ),
+            200,
+        )
 
     return app_instance
-
 
 
 if __name__ == "__main__":
