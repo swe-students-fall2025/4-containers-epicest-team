@@ -26,6 +26,7 @@ jobs:
             libportaudio2 \
             libsndfile1 \
             ffmpeg
+          sudo rm -rf /var/lib/apt/lists/*
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,7 +35,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          pip install --no-cache-dir -r requirements.txt
           pip install black pylint pytest pytest-cov
 
       - name: Lint with pylint
