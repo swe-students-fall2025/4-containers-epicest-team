@@ -49,6 +49,11 @@ jobs:
       - name: Run unit tests with coverage
         run: |
           pytest --cov=./ --cov-report=xml --cov-fail-under=80
+      
+      - name: Cleanup Python packages to free space
+        run: |
+          pip uninstall -y -r requirements.txt
+          pip uninstall -y black pylint pytest pytest-cov
 
       - name: Build Docker image
         run: |
