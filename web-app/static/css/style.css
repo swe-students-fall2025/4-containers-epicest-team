@@ -167,6 +167,37 @@ body.app-body {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
 }
 
+.btn-secondary {
+  margin-top: 1rem;
+  padding: 0.7rem 1.4rem;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.98rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background-color: rgba(91, 140, 255, 0.1);
+  color: #4a7af0;
+  border-color: #4a7af0;
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+  transform: translateY(1px);
+}
+
 /*Output*/
 
 .output-box {
@@ -226,6 +257,82 @@ body.app-body {
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+
+/* MODAL OVERLAY */
+.modal.hidden {
+  display: none;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+/* MODAL CONTENT */
+.modal-content {
+  background: #ffffff;
+  width: 90%;
+  max-width: 430px;
+  padding: 1.8rem 2rem;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  animation: modal-pop 0.2s ease-out;
+}
+
+@keyframes modal-pop {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* TEXT */
+.modal-title {
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.modal-text {
+  font-size: 0.96rem;
+  margin-bottom: 1rem;
+  color: #444;
+}
+
+/* INPUT */
+.modal-input {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  font-size: 1rem;
+  border-radius: 12px;
+  border: 1.5px solid #d0d4dd;
+  margin-top: 0.4rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.modal-input:focus {
+  border-color: var(--accent);
+}
+
+/* ACTION BUTTONS */
+.modal-actions {
+  margin-top: 1.2rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
 
 /*Responsive*/
 

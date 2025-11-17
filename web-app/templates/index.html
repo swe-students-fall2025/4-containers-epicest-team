@@ -43,5 +43,26 @@
       <li>Track results + attempts in real-time.</li>
     </ol>
   </section>
+  <!-- New passphrase modal/box -->
+<div id="new-passphrase-modal" class="modal hidden">
+  <div class="modal-content">
+    <h2 class="modal-title">Set a new passphrase</h2>
+    <p class="modal-text">
+      You guessed the current passphrase correctly. Enter a new one below for
+      the next round of the game.
+    </p>
+
+    <input
+      id="new-passphrase-input"
+      type="text"
+      class="modal-input"
+      placeholder="Type your new passphrase"
+    />
+
+    <div class="modal-actions">
+      <button id="set-passphrase-btn" class="btn-primary">Save</button>
+      <button id="close-passphrase-btn" class="btn-secondary">Cancel</button>
+    </div>
+  </div>
 </div>
 {% endblock %}

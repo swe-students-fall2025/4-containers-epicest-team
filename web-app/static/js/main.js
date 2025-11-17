@@ -4,6 +4,13 @@ const recordBtn = document.getElementById("record-btn");
 const statusText = document.getElementById("status-text");
 const guessText = document.getElementById("guess-text");
 const resultMessage = document.getElementById("result-message");
+const attemptsEl = document.getElementById("attempts-left");
+
+//elements for "set new passphrase" UI 
+const newPassphraseModal = document.getElementById("new-passphrase-modal");
+const newPassphraseInput = document.getElementById("new-passphrase-input");
+const setPassphraseBtn = document.getElementById("set-passphrase-btn");
+const closePassphraseBtn = document.getElementById("close-passphrase-btn");
 
 let isRecording = false;
 
@@ -25,11 +32,13 @@ async function submitGuessToAPI(guess) {
       recognized_text: data.guess,
       message: data.message,
       attempts_left: data.attempts_left,
-      match: data.result === "correct", // will matter later
+      match: data.result === "correct", //Not sure yet
+      can_change_passphrase: data.can_change_passphrase,
     });
   } catch (err) {
     console.error("Error submitting guess:", err);
     resultMessage.textContent = "Error: could not submit guess.";
+    resultMessage.className = "result-message error";
   }
 }
 
@@ -41,7 +50,6 @@ async function loadGameState() {
     console.log("game-state:", data);
 
     // Update attempts on page load
-    const attempts = document.getElementById("attempts-left");
     if (attempts && typeof data.attempts_left === "number") {
       attempts.textContent = data.attempts_left;
     }
@@ -50,12 +58,71 @@ async function loadGameState() {
   }
 }
 
+
+async function submitNewPassphrase() {
+  if (!newPassphraseInput) return;
+
+  const passphrase = newPassphraseInput.value.trim();
+  if (!passphrase) {
+    resultMessage.textContent = "Passphrase cannot be empty.";
+    resultMessage.className = "result-message error";
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/set-passphrase", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passphrase }),
+    });
+
+    const data = await response.json();
+    console.log("set-passphrase response:", data);
+
+    if (response.ok) {
+      resultMessage.textContent = data.message || "New passphrase set.";
+      resultMessage.className = "result-message success";
+      if (attemptsEl && typeof data.attempts_left === "number") {
+        attemptsEl.textContent = data.attempts_left;
+      }
+      newPassphraseInput.value = "";
+      hideNewPassphraseModal();
+    } else {
+      resultMessage.textContent =
+        data.error || "Error: could not set new passphrase.";
+      resultMessage.className = "result-message error";
+    }
+  } catch (err) {
+    console.error("Error setting new passphrase:", err);
+    resultMessage.textContent = "Error: could not set new passphrase.";
+    resultMessage.className = "result-message error";
+  }
+}
+
+// ---------------- UI HELPERS ---------------- //
+
+function showNewPassphraseModal() {
+  if (!newPassphraseModal) return;
+  newPassphraseModal.classList.remove("hidden");
+  if (newPassphraseInput) {
+    newPassphraseInput.value = "";
+    newPassphraseInput.focus();
+  }
+}
+
+function hideNewPassphraseModal() {
+  if (!newPassphraseModal) return;
+  newPassphraseModal.classList.add("hidden");
+}
+
+
 // ---------------- UI BEHAVIOR ---------------- //
 
 function onRecordStart() {
   isRecording = true;
   statusText.textContent = "Listening...";
   recordBtn.textContent = "🛑 Stop Recording";
+    // Later: start real mic recording and send audio to ML.
 }
 
 function onRecordStop() {
@@ -69,16 +136,27 @@ function onRecordStop() {
 }
 
 
-function showResult({ match, message, attempts_left, recognized_text }) {
+function showResult({
+  match,
+  message,
+  attempts_left,
+  recognized_text,
+  can_change_passphrase,
+}) {
   guessText.textContent = recognized_text ?? "—";
   resultMessage.textContent = message ?? "";
-  resultMessage.className = match ? "result-message success" : "result-message error";
-  
-  
-  const attempts = document.getElementById("attempts-left");
-  if (attempts && typeof attempts_left === "number") attempts.textContent = attempts_left;
+  resultMessage.className = match
+    ? "result-message success"
+    : "result-message error";
 
-// Update status text after receiving API response
+  if (attemptsEl && typeof attempts_left === "number") {
+    attemptsEl.textContent = attempts_left;
+  }
+
+  if (can_change_passphrase) {
+    showNewPassphraseModal();
+  }
+
   statusText.textContent = "Waiting to start...";
 }
 
@@ -89,6 +167,16 @@ recordBtn?.addEventListener("click", () => {
   else onRecordStop();
 });
 
+// Modal buttons
+setPassphraseBtn?.addEventListener("click", submitNewPassphrase);
+closePassphraseBtn?.addEventListener("click", hideNewPassphraseModal);
+
+// Allow Enter to submit new passphrase
+newPassphraseInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    submitNewPassphrase();
+  }
+});
 
 // Load state on page load
 loadGameState();
