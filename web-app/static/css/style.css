@@ -76,6 +76,12 @@ body.app-body {
   color: var(--accent);
 }
 
+.nav-username {
+  color: var(--accent);
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
 /*Main wrapper*/
 
 .main-wrapper {

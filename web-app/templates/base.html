@@ -14,13 +14,23 @@
   <nav class="navbar">
     <div class="navbar-inner">
       <a class="navbar-brand" href="/">Codebreaker</a>
+
       <ul class="nav-links">
-        <li><a href="/">Game</a></li>
-        <li><a href="/dashboard">Dashboard</a></li>
+        {% if current_user.is_authenticated %}
+          <!-- Logged-in user nav -->
+          <li><a href="/">Game</a></li>
+          <li><a href="/dashboard">Dashboard</a></li>
+          <li class="nav-username">Hello, {{ current_user.username }}!</li>
+          <li><a href="{{ url_for('logout') }}">Logout</a></li>
+
+        {% else %}
+          <!-- Not logged in nav -->
+          <li><a href="{{ url_for('login') }}">Login</a></li>
+          <li><a href="{{ url_for('register') }}">Sign Up</a></li>
+        {% endif %}
       </ul>
     </div>
   </nav>
-
 <!-- Page content -->
   <main class="main-wrapper">
     {% block content %}{% endblock %}
