@@ -31,9 +31,12 @@ def main(user_id: str = "usage_test") -> None:
         print("Could not connection to database", e)
 
     # Get default sample rate from input device
-    sample_rate = int(sd.query_devices(sd.default.device[0])["default_samplerate"])
-
-    info = record_clip(sample_rate=sample_rate)
+    try:
+        sample_rate = int(sd.query_devices(sd.default.device[0])["default_samplerate"])
+        info = record_clip(sample_rate=sample_rate)
+    except sd.PortAudioError as e:
+        print("Cannot access microphone for recording", e)
+        info = record_clip()
     print("\n[main] Recording finished.")
     print("[main] File:", info["file_path"])
     print("[main] Duration (s):", info["duration_seconds"])
