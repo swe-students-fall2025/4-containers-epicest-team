@@ -26,8 +26,8 @@ def get_client():
     USERS.clear()
     PLAYER_STATES.clear()
 
-
     return flask_app.test_client()
+
 
 def register_and_login(client, username="testuser", password="testpass"):
     """Helper to create an account and log in that user."""
@@ -36,6 +36,7 @@ def register_and_login(client, username="testuser", password="testpass"):
         data={"username": username, "password": password},
         follow_redirects=True,
     )
+
 
 def test_index_page_renders():
     """The main game page should load successfully."""
