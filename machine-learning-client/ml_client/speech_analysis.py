@@ -1,5 +1,9 @@
-import whisper
+"""
+Functionality to handle speech transcription and password checking
+"""
+
 import string
+import whisper
 
 
 def load_whisper_model(model_name: str):
@@ -40,7 +44,7 @@ def transcribe_audio(
             .split(),
             True,
         )
-    except Exception as e:
+    except (FileNotFoundError, ValueError, RuntimeError):
         return ["Transcription Failed"], False
 
 
@@ -60,5 +64,4 @@ def check_password_in_transcription(
     """
     if not transcription_success:
         return None
-    else:
-        return password.lower().strip() in query
+    return password.lower().strip() in query
