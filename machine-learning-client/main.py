@@ -21,7 +21,7 @@ MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB")
 
 
-def main(user_id: str) -> None:
+def main(user_id: str = "usage_test") -> None:
     """Method to run machine learning client"""
 
     try:
@@ -43,7 +43,7 @@ def main(user_id: str) -> None:
     transcription, transcription_success = transcribe_audio(info["file_path"])
     info["transcription_success"] = transcription_success
     info["transcription"] = transcription
-    info['user_id'] = user_id
+    info["user_id"] = user_id
     print(f"Transcription: {info['transcription']}")
     print(f"Transcription Success: {info['transcription_success']}")
     try:
@@ -53,4 +53,4 @@ def main(user_id: str) -> None:
 
 
 if __name__ == "__main__":
-    main("usage_test")
+    main()
