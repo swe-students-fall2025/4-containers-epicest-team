@@ -18,6 +18,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+
+      - name: Install system dependencies (PortAudio, libsndfile, ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libportaudio2 \
+            libsndfile1 \
+            ffmpeg
+          sudo rm -rf /var/lib/apt/lists/*
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -25,7 +35,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          pip install --no-cache-dir -r requirements.txt
           pip install black pylint pytest pytest-cov
 
       - name: Lint with pylint
@@ -39,6 +49,11 @@ jobs:
       - name: Run unit tests with coverage
         run: |
           pytest --cov=./ --cov-report=xml --cov-fail-under=80
+      
+      - name: Cleanup Python packages to free space
+        run: |
+          pip uninstall -y -r requirements.txt
+          pip uninstall -y black pylint pytest pytest-cov
 
       - name: Build Docker image
         run: |

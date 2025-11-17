@@ -18,7 +18,7 @@ except OSError as err:  # PortAudio library not found
 
 import soundfile as sf  # type: ignore[import]
 
-DEFAULT_SAMPLE_RATE = 16_000  # 16 kHz, good enough for speech
+DEFAULT_SAMPLE_RATE = 16000  # 16 kHz, good enough for speech
 DEFAULT_CHANNELS = 1  # mono audio
 DEFAULT_DURATION_SECONDS = 4  # seconds
 

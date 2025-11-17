@@ -7,7 +7,8 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libportaudio2 \
-        libsndfile1 && \
+        libsndfile1 \
+        ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 # Set the working directory inside the container
 WORKDIR /app
