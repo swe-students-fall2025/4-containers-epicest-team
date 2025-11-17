@@ -27,7 +27,7 @@ def main(user_id: str = "usage_test") -> None:
     try:
         client = pymongo.MongoClient(MONGO_URI)
         db = client[MONGO_DB]
-    except pymongo.errors.PyMongoError as e:
+    except (TypeError, AttributeError, pymongo.errors.PyMongoError) as e:
         print("Could not connection to database", e)
 
     # Get default sample rate from input device
@@ -48,7 +48,7 @@ def main(user_id: str = "usage_test") -> None:
     print(f"Transcription Success: {info['transcription_success']}")
     try:
         db["attempts"].insert_one(info)
-    except pymongo.errors.PyMongoError as e:
+    except (UnboundLocalError, TypeError, AttributeError, pymongo.errors.PyMongoError) as e:
         print("Could not write to database", e)
 
 
