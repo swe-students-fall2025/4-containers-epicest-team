@@ -66,6 +66,7 @@ def get_or_create_state(player_id: str):
         }
     return PLAYER_STATES[player_id]
 
+
 class User(UserMixin):
     """Minimal user wrapper for Flask-Login, using username as ID."""
 
