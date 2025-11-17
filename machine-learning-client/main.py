@@ -48,7 +48,12 @@ def main(user_id: str = "usage_test") -> None:
     print(f"Transcription Success: {info['transcription_success']}")
     try:
         db["attempts"].insert_one(info)
-    except (UnboundLocalError, TypeError, AttributeError, pymongo.errors.PyMongoError) as e:
+    except (
+        UnboundLocalError,
+        TypeError,
+        AttributeError,
+        pymongo.errors.PyMongoError,
+    ) as e:
         print("Could not write to database", e)
 
 
