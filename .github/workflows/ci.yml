@@ -18,6 +18,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+
+      - name: Install system dependencies (PortAudio, libsndfile, ffmpeg)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            libportaudio2 \
+            libsndfile1 \
+            ffmpeg
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
