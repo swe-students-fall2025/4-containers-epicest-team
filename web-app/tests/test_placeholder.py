@@ -38,6 +38,20 @@ def register_and_login(client, username="testuser", password="testpass"):
     )
 
 
+def test_login_page_renders():
+    """GET /login should return 200."""
+    client = get_client()
+    response = client.get("/login")
+    assert response.status_code == 200
+
+
+def test_register_page_renders():
+    """GET /register should return 200."""
+    client = get_client()
+    response = client.get("/register")
+    assert response.status_code == 200
+
+
 def test_index_page_renders():
     """The main game page should load successfully."""
     client = get_client()
