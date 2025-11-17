@@ -3,6 +3,8 @@ pymongo
 
 sounddevice
 soundfile
+openai-whisper
+python-dotenv
 
 pytest
 pytest-flask
