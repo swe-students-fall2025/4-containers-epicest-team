@@ -159,22 +159,70 @@ function hideNewPassphraseModal() {
 
 
 // ---------------- UI BEHAVIOR ---------------- //
+async function onRecordStart() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    resultMessage.textContent =
+      "This browser does not support microphone recording.";
+    resultMessage.className = "result-message error";
+    return;
+  }
 
-function onRecordStart() {
-  isRecording = true;
-  statusText.textContent = "Listening...";
-  recordBtn.textContent = "🛑 Stop Recording";
-    // Later: start real mic recording and send audio to ML.
+  try{
+    // Request microphone access if not already granted
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(mediaStream);
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    };
+
+    mediaRecorder.onstop = async () => {
+      // Stop the audio tracks so we do not hold the mic indefinitely
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+      }
+
+      if (audioChunks.length === 0) {
+        resultMessage.textContent = "No audio captured.";
+        resultMessage.className = "result-message error";
+        return;
+      }
+
+      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      audioChunks = [];
+
+      statusText.textContent = "Uploading and transcribing...";
+      await uploadAudioToServer(audioBlob);
+      // `uploadAudioToServer` will call submitGuessToAPI when done
+    };
+
+    mediaRecorder.start();
+    isRecording = true;
+    statusText.textContent = "Listening...";
+    recordBtn.textContent = "🛑 Stop Recording";
+  } catch (err) {
+    console.error("Error accessing microphone:", err);
+    resultMessage.textContent =
+      "Could not access microphone. Check permissions.";
+    resultMessage.className = "result-message error";
+    isRecording = false;
+  }
 }
 
 function onRecordStop() {
+  if (!isRecording || !mediaRecorder) {
+    return;
+  }
+
   isRecording = false;
-  statusText.textContent = "Waiting to start...";
+  statusText.textContent = "Processing recording...";
   recordBtn.textContent = "🎙 Start Recording";
 
-// Fake guess for now — ML team will replace this
-  const fakeGuess = "placeholder guess";
-  submitGuessToAPI(fakeGuess);
+  mediaRecorder.stop();
 }
 
 
