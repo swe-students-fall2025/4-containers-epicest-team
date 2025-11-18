@@ -14,6 +14,11 @@ const closePassphraseBtn = document.getElementById("close-passphrase-btn");
 
 let isRecording = false;
 
+// recording-related globals
+let mediaStream = null;
+let mediaRecorder = null;
+let audioChunks = [];
+
 // ---------------- API HELPERS ---------------- //
 
 async function submitGuessToAPI(guess) {

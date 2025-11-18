@@ -126,6 +126,26 @@ def create_app():
             )
         return response
 
+
+    # -------------------------
+    # PLACEHOLDER ML INTEGRATION (NEED TO REPLACE)  
+    # -------------------------
+    def transcribe_audio(file_storage) -> str:
+        """
+        Placeholder transcription function.
+
+        - `file_storage` is a Werkzeug FileStorage object.
+        - In the real project, this should call your ML client or an external STT service.
+        """
+        # Read raw bytes if you need to forward them:
+        # audio_bytes = file_storage.read()
+
+        # For now, return a hard-coded string to prove the pipeline works.
+        # Replace this with real transcription logic later.
+        return "example guess from audio"
+
+
+
     # -------------------------
     # AUTH ROUTES
     # -------------------------
