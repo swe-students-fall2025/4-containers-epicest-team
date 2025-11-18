@@ -82,6 +82,12 @@ def create_app():
     """Application factory for password guess web app"""
     app_instance = Flask(__name__)
 
+    # Add cache-busting version (automatic)
+    import time
+    @app_instance.context_processor
+    def inject_version():
+        return {'version': int(time.time())}
+    
     # REQUIRED for sessions / Flask-Login / flash()
     app_instance.config["SECRET_KEY"] = "dev-secret-change-me"
     # -------------------------
