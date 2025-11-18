@@ -55,8 +55,8 @@ async function loadGameState() {
     console.log("game-state:", data);
 
     // Update attempts on page load
-    if (attempts && typeof data.attempts_left === "number") {
-      attempts.textContent = data.attempts_left;
+    if (attemptsEl && typeof data.attempts_left === "number") {
+      attemptsEl.textContent = data.attempts_left;
     }
   } catch (err) {
     console.error("Error loading game state:", err);
