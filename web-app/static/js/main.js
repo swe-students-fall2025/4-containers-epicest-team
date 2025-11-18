@@ -47,6 +47,43 @@ async function submitGuessToAPI(guess) {
   }
 }
 
+async function uploadAudioToServer(blob) {
+  try {
+    const formData = new FormData();
+    formData.append("audio_file", blob, "recording.webm");
+
+    const response = await fetch("/api/upload-audio", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+    console.log("upload-audio response:", data);
+
+    if (!response.ok) {
+      resultMessage.textContent =
+        data.error || "Error: could not process audio.";
+      resultMessage.className = "result-message error";
+      return;
+    }
+
+    const recognizedText = data.recognized_text || "";
+    if (!recognizedText) {
+      resultMessage.textContent = "No speech recognized.";
+      resultMessage.className = "result-message error";
+      return;
+    }
+
+    // Feed the recognized text into existing guess logic
+    submitGuessToAPI(recognizedText);
+  } catch (err) {
+    console.error("Error uploading audio:", err);
+    resultMessage.textContent = "Error: could not upload audio.";
+    resultMessage.className = "result-message error";
+  }
+}
+
+
 async function loadGameState() {
   try {
     const response = await fetch("/api/game-state");
