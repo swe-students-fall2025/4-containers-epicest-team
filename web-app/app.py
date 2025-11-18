@@ -149,6 +149,33 @@ def create_app():
     # -------------------------
     # AUTH ROUTES
     # -------------------------
+
+    @app_instance.route("/api/upload-audio", methods=["POST"])
+    @login_required
+    def upload_audio():
+        """
+        Accept an audio file from the browser, run speech-to-text,
+        and return the recognized text.
+
+        Expected form field name: 'audio_file'
+        """
+        if "audio_file" not in request.files:
+            return jsonify({"error": "No audio file uploaded."}), 400
+
+        file_storage = request.files["audio_file"]
+
+        if not file_storage or file_storage.filename == "":
+            return jsonify({"error": "Empty audio file."}), 400
+
+        # Call the transcription helper
+        recognized_text = transcribe_audio(file_storage)
+
+        # Optional: basic sanity check
+        if not recognized_text:
+            return jsonify({"error": "Transcription failed."}), 500
+
+        return jsonify({"recognized_text": recognized_text}), 200
+
     @app_instance.route("/register", methods=["GET", "POST"])
     def register():
         """User registration: simple username + password."""
