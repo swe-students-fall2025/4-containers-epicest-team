@@ -1,0 +1,10 @@
+[MASTER]
+# Allow Pylint to skip strict rules in test files
+ignore-patterns=test_.*\.py,conftest\.py
+
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-function-docstring,
+    redefined-outer-name,
+    unused-argument
