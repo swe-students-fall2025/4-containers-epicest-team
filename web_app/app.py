@@ -138,6 +138,14 @@ def create_app():
             return User(username)
         return None
 
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        """Handle unauthorized access."""
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Unauthorized"}), 401
+        return redirect(url_for("login", next=request.url))
+
+
     # -------------------------
     # PLAYER ID COOKIE HANDLING
     # -------------------------
