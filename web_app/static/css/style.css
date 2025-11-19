@@ -296,6 +296,7 @@ body.app-body {
     transform: scale(0.96);
     opacity: 0;
   }
+
   to {
     transform: scale(1);
     opacity: 1;
@@ -304,6 +305,7 @@ body.app-body {
 
 /* TEXT */
 .modal-title {
+  color: var(--accent);
   font-size: 1.4rem;
   margin-bottom: 0.5rem;
   font-weight: 700;
