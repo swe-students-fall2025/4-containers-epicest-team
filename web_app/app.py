@@ -343,7 +343,7 @@ def create_app():
     login_manager.login_view = "login"
 
     # initialize mongo
-    mongo_client, db = init_mongo()
+    _mongo_client, db = init_mongo()
 
     # Ensure there's an active secret
     if db is not None:
@@ -753,6 +753,50 @@ def create_app():
                 return jsonify({"error": f"Database error: {str(e)}"}), 500
         else:
             return jsonify({"error": "Database not configured"}), 503
+
+    @app_instance.route("/api/metadata-summary", methods=["GET"])
+    @login_required
+    def metadata_summary():
+        """Return aggregated metadata for the dashboard."""
+        try:
+            if db is None:
+                return jsonify({"error": "Database not configured"}), 503
+
+            # Count total metadata entries
+            total_entries = db.metadata.count_documents({})
+
+            # Count how many entries belong to this user (optional)
+            user_entries = db.metadata.count_documents(
+                {"user_uuid": current_user.user_uuid}
+            )
+
+            # Most recent metadata timestamp
+            latest = db.metadata.find_one({}, sort=[("timestamp", -1)])
+
+            latest_timestamp = latest["timestamp"] if latest else None
+
+            # Example: count submissions by page type
+            page_counts = db.metadata.aggregate(
+                [
+                    {"$group": {"_id": "$metadata.page", "count": {"$sum": 1}}},
+                ]
+            )
+            page_counts = list(page_counts)
+
+            return (
+                jsonify(
+                    {
+                        "total_entries": total_entries,
+                        "user_entries": user_entries,
+                        "latest_timestamp": latest_timestamp,
+                        "page_counts": page_counts,  # e.g. how many times dashboard was visited
+                    }
+                ),
+                200,
+            )
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     @app_instance.route("/api/reset", methods=["POST"])
     @login_required
