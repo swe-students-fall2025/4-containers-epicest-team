@@ -41,6 +41,10 @@ jobs:
         run: |
           pipenv install --deploy --system --dev
 
+      - name: Install CPU-only PyTorch for CI
+        run: |
+          pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cpu
+
       - name: Lint with pylint
         run: |
           pylint --exit-zero $(git ls-files '*.py')
