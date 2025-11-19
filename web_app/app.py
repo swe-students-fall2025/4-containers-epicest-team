@@ -13,7 +13,7 @@ Full version with:
 import uuid
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 from flask import (
@@ -51,18 +51,8 @@ MONGO_PASS= os.getenv("MONGO_PASS")
 mongo_client = None
 db = None
 
-# per-user in-memory state just for now (will be replaced by Mongo later)
-# {
-#   player_id: {
-#       "attempts_left": int,
-#       "last_result": None/"correct"/"incorrect",
-#       "last_guess": str|None,
-#       "secret_phrase": str
-#   }
-# }
-PLAYER_STATES = {}
-
-DEFAULT_SECRET_PHRASE = "open sesame"
+DEFAULT_SECRET_PHRASE = "Open Sesame"
+DEFAULT_SECRET_HINT = "A classic phrase to unlock a secret"
 
 def init_mongo():
     """Initialize MongoDB connection"""
@@ -80,32 +70,256 @@ def init_mongo():
         return None, None
 
 
-# very simple in-memory users store for login
-# USERS = {
-#   "username": {
-#       "password_hash": "...",
-#   }
-# }
-USERS = {}
+def get_active_secret(db_connection):
+    """Get the current active secret."""
+    if db_connection is None:
+        return None
+    
+    try:
+        # Find a secret that hasn't been solved yet
+        active_secret = db_connection.secrets.find_one(
+            {"solved_at": None},
+            sort=[("created_at", pymongo.ASCENDING)]
+        )
+        return active_secret
+    except Exception as e:
+        print(f"Error getting active secret: {e}")
+        return None
 
 
-def get_or_create_state(player_id: str):
-    """Fetch or initialize the player's game state."""
-    if player_id not in PLAYER_STATES:
-        PLAYER_STATES[player_id] = {
+def create_default_secret(db_connection):
+    """Create a default secret if no active secret exists."""
+    if db_connection is None:
+        return None
+    
+    try:
+        # Check if any active secrets exist
+        active_secret = db_connection.secrets.find_one({"solved_at": None})
+        if active_secret is None:
+            # No active secret found, create default one
+            default_secret = {
+                "secret_id": str(uuid.uuid4()),
+                "secret_phrase": DEFAULT_SECRET_PHRASE,
+                "hint": DEFAULT_SECRET_HINT,
+                "created_at": datetime.now().isoformat(),
+                "wrong_guesses": 0,
+                "solved_at": None,
+            }
+            db_connection.secrets.insert_one(default_secret)
+            print("Created default secret")
+            return default_secret
+        return active_secret
+    except Exception as e:
+        print(f"Error creating default secret: {e}")
+        return None
+
+
+def mark_secret_solved(db_connection, secret_id):
+    """Mark a secret as solved."""
+    if db_connection is None:
+        return False
+    
+    try:
+        db_connection.secrets.update_one(
+            {"secret_id": secret_id},
+            {"$set": {"solved_at": datetime.now().isoformat()}}
+        )
+        return True
+    except Exception as e:
+        print(f"Error marking secret as solved: {e}")
+        return False
+
+
+def increment_wrong_guesses(db_connection, secret_id):
+    """Increment the wrong guess count for a secret."""
+    if db_connection is None:
+        return False
+    
+    try:
+        db_connection.secrets.update_one(
+            {"secret_id": secret_id},
+            {"$inc": {"wrong_guesses": 1}}
+        )
+        return True
+    except Exception as e:
+        print(f"Error incrementing wrong guesses: {e}")
+        return False
+
+
+def create_new_secret(db_connection, secret_phrase, hint, creator_uuid):
+    """Create a new secret."""
+    if db_connection is None:
+        return None
+    
+    try:
+        new_secret = {
+            "secret_id": str(uuid.uuid4()),
+            "secret_phrase": secret_phrase,
+            "hint": hint,
+            "created_at": datetime.now().isoformat(),
+            "created_by": creator_uuid,
+            "wrong_guesses": 0,
+            "solved_at": None,
+        }
+        db_connection.secrets.insert_one(new_secret)
+        return new_secret
+    except Exception as e:
+        print(f"Error creating new secret: {e}")
+        return None
+
+
+
+def get_or_create_state(user_uuid: str, db_connection, active_secret):
+    """Fetch or initialize the player's game state from MongoDB."""
+    if db_connection is None or active_secret is None:
+        # Fallback to default state if DB is unavailable
+        return {
             "attempts_left": 3,
             "last_result": None,
             "last_guess": None,
-            "secret_phrase": DEFAULT_SECRET_PHRASE,
+            "current_secret_id": None,
+            "can_create_secret": False,
+            "locked_until": None,
         }
-    return PLAYER_STATES[player_id]
+    
+    current_secret_id = active_secret.get("secret_id")
+    now = datetime.now()
+    
+    try:
+        game_state = db_connection.game_states.find_one({"user_uuid": user_uuid})
+        
+        if game_state:
+            # Check if the secret has changed since user last played
+            stored_secret_id = game_state.get("current_secret_id")
+            
+            if stored_secret_id != current_secret_id:
+                reset_state = {
+                    "current_secret_id": current_secret_id,
+                    "attempts_left": 3,
+                    "last_result": None,
+                    "last_guess": None,
+                    "can_create_secret": False,
+                    "locked_until": None,
+                    "updated_at": now.isoformat(),
+                }
+                db_connection.game_states.update_one(
+                    {"user_uuid": user_uuid},
+                    {"$set": reset_state}
+                )
+                return {
+                    "attempts_left": 3,
+                    "last_result": None,
+                    "last_guess": None,
+                    "current_secret_id": current_secret_id,
+                    "can_create_secret": False,
+                    "locked_until": None,
+                }
+            
+            # Same secret - check if user is locked out (< 24 hours since guesses ran out)
+            locked_until_str = game_state.get("locked_until")
+            attempts_left = game_state.get("attempts_left", 3)
+            
+            if attempts_left == 0 and locked_until_str:
+                # User was locked out, check if 24 hours have passed since then
+                try:
+                    locked_until = datetime.fromisoformat(locked_until_str)
+                    if now >= locked_until:
+                        # 24 hours have passed, restore attempts
+                        restore_state = {
+                            "attempts_left": 3,
+                            "locked_until": None,
+                            "last_result": None,
+                            "last_guess": None,
+                            "updated_at": now.isoformat(),
+                        }
+                        db_connection.game_states.update_one(
+                            {"user_uuid": user_uuid},
+                            {"$set": restore_state}
+                        )
+                        return {
+                            "attempts_left": 3,
+                            "last_result": None,
+                            "last_guess": None,
+                            "current_secret_id": current_secret_id,
+                            "can_create_secret": game_state.get("can_create_secret", False),
+                            "locked_until": None,
+                        }
+                except (ValueError, TypeError):
+                    # Invalid timestamp, ignore and continue
+                    pass
+            
+            # Return existing state
+            return {
+                "attempts_left": attempts_left,
+                "last_result": game_state.get("last_result"),
+                "last_guess": game_state.get("last_guess"),
+                "current_secret_id": current_secret_id,
+                "can_create_secret": game_state.get("can_create_secret", False),
+                "locked_until": locked_until_str,
+            }
+        else:
+            # Create new game state
+            new_state = {
+                "user_uuid": user_uuid,
+                "current_secret_id": current_secret_id,
+                "attempts_left": 3,
+                "last_result": None,
+                "last_guess": None,
+                "can_create_secret": False,
+                "locked_until": None,
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat(),
+            }
+            db_connection.game_states.insert_one(new_state)
+            
+            # Create index on user_uuid for faster lookups
+            db_connection.game_states.create_index("user_uuid", unique=True)
+            
+            return {
+                "attempts_left": 3,
+                "last_result": None,
+                "last_guess": None,
+                "current_secret_id": current_secret_id,
+                "can_create_secret": False,
+                "locked_until": None,
+            }
+    except Exception as e:
+        print(f"Error accessing game state: {e}")
+        # Return default state on error
+        return {
+            "attempts_left": 3,
+            "last_result": None,
+            "last_guess": None,
+            "current_secret_id": current_secret_id,
+            "can_create_secret": False,
+            "locked_until": None,
+        }
+
+
+def update_game_state(user_uuid: str, db_connection, state_updates: dict):
+    """Update game state in MongoDB."""
+    if db_connection is None:
+        return False
+    
+    try:
+        state_updates["updated_at"] = datetime.now().isoformat()
+        db_connection.game_states.update_one(
+            {"user_uuid": user_uuid},
+            {"$set": state_updates},
+            upsert=True
+        )
+        return True
+    except Exception as e:
+        print(f"Error updating game state: {e}")
+        return False
 
 
 class User(UserMixin):
     """Minimal user wrapper for Flask-Login, using username as ID."""
 
-    def __init__(self, username: str):
-        self.id = username  # Flask-Login expects .id
+    def __init__(self, username: str, user_uuid: str = None):
+        self.id = username
+        self.user_uuid = user_uuid
 
     @property
     def username(self):
@@ -134,12 +348,23 @@ def create_app():
 
     # initialize mongo
     mongo_client, db = init_mongo()
+    
+    # Ensure there's an active secret
+    if db is not None:
+        create_default_secret(db)
 
     @login_manager.user_loader
     def load_user(username):
         """Return a User object for a given username, or None."""
-        if username in USERS:
-            return User(username)
+        if db is not None:
+            try:
+                user_doc = db.users.find_one({"username": username})
+                if user_doc:
+                    user_uuid = user_doc.get("user_uuid")
+                    return User(username, user_uuid=user_uuid)
+            except Exception as e:
+                print(f"Error loading user from database: {e}")
+        
         return None
 
     @login_manager.unauthorized_handler
@@ -149,34 +374,6 @@ def create_app():
             return jsonify({"error": "Unauthorized"}), 401
         return redirect(url_for("login", next=request.url))
 
-
-    # -------------------------
-    # PLAYER ID COOKIE HANDLING
-    # -------------------------
-    @app_instance.before_request
-    def ensure_player_id():
-        """Ensure each user has a persistent anonymous UUID in a cookie."""
-        player_id = request.cookies.get("player_id")
-
-        if not player_id:
-            # First time this browser is seen
-            player_id = str(uuid.uuid4())
-            g.new_player_id = player_id  # Mark to set cookie in after_request
-
-        g.player_id = player_id  # Store for use in routes
-
-    @app_instance.after_request
-    def set_player_cookie(response):
-        """Attach player_id cookie if newly created."""
-        if getattr(g, "new_player_id", None):
-            response.set_cookie(
-                "player_id",
-                g.new_player_id,
-                max_age=60 * 60 * 24 * 30,  # 30 days
-                httponly=True,
-                samesite="Lax",
-            )
-        return response
 
     # -------------------------
     # AUTH ROUTES
@@ -227,18 +424,50 @@ def create_app():
                 flash("Username and password are required.", "error")
                 return redirect(url_for("register"))
 
-            if username in USERS:
-                flash("Username already taken.", "error")
+            if not username.replace("_", "").isalnum():
+                flash("Username can only contain letters, numbers, and underscores.", "error")
                 return redirect(url_for("register"))
-
-            USERS[username] = {
-                "password_hash": generate_password_hash(password),
-            }
-
-            user = User(username)
-            login_user(user)
-            flash("Account created and logged in!", "success")
-            return redirect(url_for("index"))
+            
+            # Minimum password length for security
+            if len(password) < 6:
+                flash("Password must be at least 6 characters long.", "error")
+                return redirect(url_for("register"))
+            
+            if db is not None:
+                try:
+                    existing_user = db.users.find_one({"username": username})
+                    if existing_user:
+                        flash("Username already taken.", "error")
+                        return redirect(url_for("register"))
+                    
+                    # Create new user in MongoDB with hashed password and UUID
+                    user_uuid = str(uuid.uuid4())
+                    user_doc = {
+                        "username": username,
+                        "password_hash": generate_password_hash(password, method='pbkdf2:sha256'),
+                        "user_uuid": user_uuid,
+                        "created_at": datetime.now().isoformat(),
+                    }
+                    db.users.insert_one(user_doc)
+                    
+                    # Create unique index on username to prevent duplicates
+                    db.users.create_index("username", unique=True)
+                    
+                    user = User(username, user_uuid=user_uuid)
+                    login_user(user)
+                    flash("Account created and logged in!", "success")
+                    return redirect(url_for("index"))
+                    
+                except pymongo.errors.DuplicateKeyError:
+                    flash("Username already taken.", "error")
+                    return redirect(url_for("register"))
+                except Exception as e:
+                    print(f"Error creating user: {e}")
+                    flash("An error occurred. Please try again.", "error")
+                    return redirect(url_for("register"))
+            else:
+                flash("Database not available. Please try again later.", "error")
+                return redirect(url_for("register"))
 
         return render_template("register.html")
 
@@ -249,19 +478,28 @@ def create_app():
             username = request.form.get("username", "").strip()
             password = request.form.get("password", "")
 
-            user_record = USERS.get(username)
-            if not user_record or not check_password_hash(
-                user_record["password_hash"], password
-            ):
-                flash("Invalid username or password.", "error")
+            if not username or not password:
+                flash("Username and password are required.", "error")
                 return redirect(url_for("login"))
 
-            user = User(username)
-            login_user(user)
-            flash("Logged in successfully.", "success")
-
-            next_page = request.args.get("next")
-            return redirect(next_page or url_for("index"))
+            if db is not None:
+                try:
+                    user_doc = db.users.find_one({"username": username})
+                    if user_doc and check_password_hash(user_doc["password_hash"], password):
+                        user_uuid = user_doc.get("user_uuid")
+                        user = User(username, user_uuid=user_uuid)
+                        login_user(user)
+                        flash("Logged in successfully.", "success")
+                        next_page = request.args.get("next")
+                        return redirect(next_page or url_for("index"))
+                except Exception as e:
+                    print(f"Error during login: {e}")
+                    flash("An error occurred. Please try again.", "error")
+                    return redirect(url_for("login"))
+            
+            # Authentication failed
+            flash("Invalid username or password.", "error")
+            return redirect(url_for("login"))
 
         return render_template("login.html")
 
@@ -295,39 +533,59 @@ def create_app():
     @login_required
     def game_state():
         """Return this player's current game state."""
-        state = get_or_create_state(g.player_id)
-        return jsonify(state), 200
+        active_secret = get_active_secret(db)
+        
+        # If no active secret exists, create the default one
+        if active_secret is None:
+            active_secret = create_default_secret(db)
+        
+        if active_secret is None:
+            return jsonify({"error": "No active secret available"}), 503
+        
+        state = get_or_create_state(current_user.user_uuid, db, active_secret)
+        
+        response = {
+            **state,
+            "hint": active_secret.get("hint", "No hint available"),
+            "secret_id": active_secret.get("secret_id"),
+        }
+        
+        return jsonify(response), 200
 
     @app_instance.route("/api/submit-guess", methods=["POST"])
     @login_required
     def submit_guess():
         """
         Receive a guess from the frontend and apply game logic.
-
-        Currently:
-        - compares the text guess to the secret_phrase
-        - tracks attempts_left per player_id
-        - returns whether the guess was correct and if the user may set a new passphrase
-
-        Later:
-        - we can plug in the ML transcription so the guess comes from audio
+        
+        When correct:
+        - Mark secret as solved
+        - Give winner permission to create new secret
         """
         data = request.get_json() or {}
         guess = (data.get("guess", "")).strip()
 
-        state = get_or_create_state(g.player_id)
+        active_secret = get_active_secret(db)
+        
+        if active_secret is None:
+            return jsonify({"error": "No active secret available"}), 503
+        
+        secret_id = active_secret.get("secret_id")
+        secret_phrase = active_secret.get("secret_phrase")
+
+        state = get_or_create_state(current_user.user_uuid, db, active_secret)
 
         # No attempts left
         if state["attempts_left"] <= 0:
             return (
                 jsonify(
                     {
-                        "message": "No attempts left for this passphrase.",
+                        "message": "No attempts left for this secret.",
                         "guess": guess,
                         "attempts_left": state["attempts_left"],
                         "result": "no_attempts",
                         "match": False,
-                        "can_change_passphrase": False,
+                        "can_create_secret": False,
                     }
                 ),
                 200,
@@ -338,17 +596,30 @@ def create_app():
         state["last_guess"] = guess
 
         # Check correct guess
-        if guess.lower() == state["secret_phrase"].lower():
+        if guess.lower() == secret_phrase.lower():
             state["last_result"] = "correct"
+            state["can_create_secret"] = True
+            
+            # Mark secret as solved in the secrets collection
+            mark_secret_solved(db, secret_id)
+            
+            # Update state in database
+            update_game_state(current_user.user_uuid, db, {
+                "attempts_left": state["attempts_left"],
+                "last_result": state["last_result"],
+                "last_guess": state["last_guess"],
+                "can_create_secret": True,
+            })
+            
             return (
                 jsonify(
                     {
-                        "message": "You guessed it! You can now set a new passphrase.",
+                        "message": "You guessed it! You can now create a new secret.",
                         "guess": guess,
                         "attempts_left": state["attempts_left"],
                         "result": "correct",
                         "match": True,
-                        "can_change_passphrase": True,
+                        "can_create_secret": True,
                     }
                 ),
                 200,
@@ -356,10 +627,27 @@ def create_app():
 
         # Incorrect guess
         state["last_result"] = "incorrect"
-        if state["attempts_left"] > 0:
-            msg = "Incorrect guess. Try again!"
+        
+        # Increment wrong guesses for this secret
+        increment_wrong_guesses(db, secret_id)
+        
+        # If attempts reach zero, lock user out for 24 hours
+        state_update = {
+            "attempts_left": state["attempts_left"],
+            "last_result": state["last_result"],
+            "last_guess": state["last_guess"]
+        }
+        
+        locked_until = None
+        if state["attempts_left"] == 0:
+            locked_until = (datetime.now() + timedelta(hours=24)).isoformat()
+            state_update["locked_until"] = locked_until
+            msg = "Incorrect guess. No attempts left. You can try again in 24 hours."
         else:
-            msg = "Incorrect guess. No attempts left."
+            msg = "Incorrect guess. Try again!"
+        
+        # Update state in database
+        update_game_state(current_user.user_uuid, db, state_update)
 
         return (
             jsonify(
@@ -369,35 +657,54 @@ def create_app():
                     "attempts_left": state["attempts_left"],
                     "result": "incorrect",
                     "match": False,
-                    "can_change_passphrase": False,
+                    "can_create_secret": False,
+                    "locked_until": locked_until,
                 }
             ),
             200,
         )
 
-    @app_instance.route("/api/set-passphrase", methods=["POST"])
+    @app_instance.route("/api/create-secret", methods=["POST"])
     @login_required
-    def set_passphrase():
-        """Allow player to set a new secret passphrase (after a correct guess)."""
+    def create_secret():
+        """Allow winning player to create a new secret with a hint."""
+        user_state = db.game_states.find_one({"user_uuid": current_user.user_uuid}) if db is not None else None
+        
+        if not user_state or not user_state.get("can_create_secret", False):
+            return jsonify({"error": "You don't have permission to create a secret."}), 403
+        
         data = request.get_json() or {}
-        new_phrase = (data.get("passphrase", "")).strip()
+        new_phrase = (data.get("secret_phrase", "")).strip()
+        hint = (data.get("hint", "")).strip()
 
         if not new_phrase:
-            return jsonify({"error": "Passphrase cannot be empty."}), 400
+            return jsonify({"error": "Secret phrase cannot be empty."}), 400
+        
+        if not hint:
+            return jsonify({"error": "Hint cannot be empty."}), 400
+        
+        if len(new_phrase) < 3:
+            return jsonify({"error": "Secret phrase must be at least 3 characters."}), 400
+        
+        if len(hint) < 5:
+            return jsonify({"error": "Hint must be at least 5 characters."}), 400
 
-        state = get_or_create_state(g.player_id)
-
-        # Reset with new passphrase
-        state["secret_phrase"] = new_phrase
-        state["attempts_left"] = 3
-        state["last_result"] = None
-        state["last_guess"] = None
+        # Create the new secret
+        new_secret = create_new_secret(db, new_phrase, hint, current_user.user_uuid)
+        
+        if new_secret is None:
+            return jsonify({"error": "Failed to create secret."}), 500
+        
+        # Reset this user's can_create_secret flag
+        update_game_state(current_user.user_uuid, db, {
+            "can_create_secret": False,
+        })
 
         return (
             jsonify(
                 {
-                    "message": "New passphrase set. You have 3 attempts.",
-                    "attempts_left": state["attempts_left"],
+                    "message": "New secret created.",
+                    "secret_id": new_secret.get("secret_id"),
                 }
             ),
             200,
@@ -415,7 +722,7 @@ def create_app():
         if db is not None:
             try:
                 db.metadata.insert_one({
-                    "user_id": g.player_id,
+                    "user_uuid": current_user.user_uuid,
                     "username": current_user.username,
                     "metadata": metadata,
                     "timestamp": datetime.now().isoformat()
@@ -429,18 +736,28 @@ def create_app():
     @app_instance.route("/api/reset", methods=["POST"])
     @login_required
     def reset_game():
-        """Reset game state for this player."""
-        PLAYER_STATES[g.player_id] = {
+        """Reset game state for this player for the current secret."""
+        # Get active secret
+        active_secret = get_active_secret(db)
+        
+        if active_secret is None:
+            return jsonify({"error": "No active secret available"}), 503
+        
+        reset_state = {
+            "current_secret_id": active_secret.get("secret_id"),
             "attempts_left": 3,
             "last_result": None,
             "last_guess": None,
-            "secret_phrase": DEFAULT_SECRET_PHRASE,
+            "can_create_secret": False,
+            "locked_until": None,
         }
+        update_game_state(current_user.user_uuid, db, reset_state)
+        
         return (
             jsonify(
                 {
-                    "message": "Game reset.",
-                    **PLAYER_STATES[g.player_id],
+                    "message": "Game reset. You have 3 new attempts.",
+                    **reset_state,
                 }
             ),
             200,
@@ -464,7 +781,7 @@ def transcribe_audio(file_storage) -> str:
 
     # For now, return a hard-coded string to prove the pipeline works.
     # Replace this with real transcription logic later.
-    return "example guess from audio"
+    return "open sesame"
 
 
 if __name__ == "__main__":
