@@ -59,12 +59,12 @@ jobs:
         run: |
           docker build -t ml-client-test .
 
-  web-app:
+  web_app:
     name: Web App CI
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: web-app
+        working-directory: web_app
 
     steps:
       - name: Checkout repository
@@ -94,4 +94,4 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t web-app-test .
+          docker build -t web_app_test .
