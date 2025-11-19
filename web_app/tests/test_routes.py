@@ -4,6 +4,7 @@ Tests webapp HTML routes.
 
 # pylint: skip-file
 
+
 class TestIndexRoute:
     """Tests for / endpoint."""
 
