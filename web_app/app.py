@@ -647,7 +647,9 @@ def create_app():
 
         locked_until = None
         if state["attempts_left"] == 0:
-            locked_until = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+            locked_until = (
+                datetime.now(timezone.utc) + timedelta(hours=24)
+            ).isoformat()
             state_update["locked_until"] = locked_until
             msg = "Incorrect guess. No attempts left."
         else:
@@ -835,6 +837,7 @@ def create_app():
 
 # ML integration
 
+
 def transcribe_audio(file_storage) -> str:
     """
     Placeholder transcription function.
@@ -849,33 +852,33 @@ def transcribe_audio(file_storage) -> str:
     # Read the file content once and reset pointer
     file_storage.seek(0)
     audio_bytes = file_storage.read()
-    
+
     payload = {"user_id": user_id}
-    
+
     # Try up to 2 times
     for attempt in range(2):
         # Create a fresh BytesIO object for each attempt
         file_obj = io.BytesIO(audio_bytes)
         files = {"audio": (file_storage.filename, file_obj, file_storage.content_type)}
-        
+
         try:
             resp = requests.post(
                 f"{ML_CLIENT_URL}/transcribe", files=files, data=payload, timeout=120
             )
             resp.raise_for_status()
             ml_result = resp.json()
-            
+
             success = ml_result.get("transcription_success", False)
             guess = ml_result.get("transcription", "")
-            
+
             if success:
                 return guess
-                
+
         except requests.RequestException as e:
             if attempt == 1:
                 return "Transcription Failed"
             continue
-    
+
     # Fallback
     return "Transcription Failed"
 

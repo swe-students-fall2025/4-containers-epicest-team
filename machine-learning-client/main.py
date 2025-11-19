@@ -35,6 +35,7 @@ except (TypeError, AttributeError, pymongo.errors.PyMongoError) as e:
 
 app.state.model = None
 
+
 @app.on_event("startup")
 def startup_event():
     """Load model on start of ml client and keep in memory"""
