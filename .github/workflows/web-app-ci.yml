@@ -1,0 +1,46 @@
+name: Web App CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  web_app:
+    name: Web App CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web_app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install pipenv
+          pipenv install --system --dev
+
+      - name: Lint with pylint
+        run: |
+          pylint --exit-zero $(git ls-files '*.py')
+
+      - name: Check formatting with black
+        run: |
+          black --check .
+
+      - name: Run unit tests with coverage
+        run: |
+          pytest --cov=./ --cov-report=xml --cov-fail-under=80
+
+      - name: Build Docker image
+        run: |
+          docker build -t web_app_test .
+

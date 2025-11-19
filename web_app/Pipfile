@@ -9,14 +9,15 @@ flask = "*"
 flask-login = "*"
 pymongo = "*"
 python-dotenv = "*"
+black = "*"
 
 [dev-packages]
-pytest = "*"
 tomli = "*"
 typing-extensions = "*"
 black = "*"
-pytest-cov = "*"
 pytest-flask = "*"
+pytest = "*"
+pytest-cov = "*"
 
 [requires]
 python_version = "3.10"
