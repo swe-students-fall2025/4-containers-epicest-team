@@ -128,6 +128,31 @@ body.app-body {
   font-weight: 600;
 }
 
+.hint-box {
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.08), rgba(91, 140, 255, 0.15));
+  border: 1px solid rgba(91, 140, 255, 0.3);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.hint-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.hint-value {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-main);
+  font-style: italic;
+}
+
 .info-row {
   display: flex;
   gap: 0.4rem;
@@ -173,35 +198,19 @@ body.app-body {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
 }
 
-.btn-secondary {
-  margin-top: 1rem;
-  padding: 0.7rem 1.4rem;
-  border: 2px solid var(--accent);
-  border-radius: 999px;
-  background-color: transparent;
-  color: var(--accent);
-  font-weight: 600;
-  font-size: 0.98rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  transition: background-color var(--transition-fast),
-    color var(--transition-fast),
-    border-color var(--transition-fast),
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+.btn-primary:disabled {
+  background-color: var(--surface-light);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+  box-shadow: none;
 }
 
-.btn-secondary:hover {
-  background-color: rgba(91, 140, 255, 0.1);
-  color: #4a7af0;
-  border-color: #4a7af0;
-  transform: translateY(-1px);
-}
-
-.btn-secondary:active {
-  transform: translateY(1px);
+.btn-primary:disabled:hover {
+  background-color: var(--surface-light);
+  transform: none;
+  box-shadow: none;
 }
 
 /*Output*/
@@ -272,11 +281,12 @@ body.app-body {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 999;
+  backdrop-filter: blur(4px);
 }
 
 /* MODAL CONTENT */
@@ -296,6 +306,7 @@ body.app-body {
     transform: scale(0.96);
     opacity: 0;
   }
+
   to {
     transform: scale(1);
     opacity: 1;
@@ -304,6 +315,7 @@ body.app-body {
 
 /* TEXT */
 .modal-title {
+  color: var(--accent);
   font-size: 1.4rem;
   margin-bottom: 0.5rem;
   font-weight: 700;

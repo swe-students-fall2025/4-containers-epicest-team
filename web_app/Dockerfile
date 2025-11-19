@@ -8,9 +8,10 @@ ENV PYTHONUNBUFFERED=1
 #set work directory inside the container
 WORKDIR /app
 
-#install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+#install pipenv and dependencies
+RUN pip install pipenv
+COPY Pipfile Pipfile.lock ./
+RUN pipenv install --system --deploy
 
 #copy the rest of the app code
 COPY . .

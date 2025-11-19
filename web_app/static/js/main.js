@@ -5,12 +5,13 @@ const statusText = document.getElementById("status-text");
 const guessText = document.getElementById("guess-text");
 const resultMessage = document.getElementById("result-message");
 const attemptsEl = document.getElementById("attempts-left");
+const hintText = document.getElementById("hint-text");
 
-//elements for "set new passphrase" UI 
-const newPassphraseModal = document.getElementById("new-passphrase-modal");
-const newPassphraseInput = document.getElementById("new-passphrase-input");
-const setPassphraseBtn = document.getElementById("set-passphrase-btn");
-const closePassphraseBtn = document.getElementById("close-passphrase-btn");
+//elements for "create new secret" UI 
+const newSecretModal = document.getElementById("new-secret-modal");
+const newSecretInput = document.getElementById("new-secret-input");
+const newHintInput = document.getElementById("new-hint-input");
+const createSecretBtn = document.getElementById("create-secret-btn");
 
 let isRecording = false;
 
@@ -18,6 +19,9 @@ let isRecording = false;
 let mediaStream = null;
 let mediaRecorder = null;
 let audioChunks = [];
+
+// lockout timer globals
+let lockoutInterval = null;
 
 // ---------------- API HELPERS ---------------- //
 
@@ -32,14 +36,25 @@ async function submitGuessToAPI(guess) {
     const data = await response.json();
     console.log("submit-guess response:", data);
 
-    // Map backend → showResult expected format
-    showResult({
+    // Map backend
+    const mapped_data = {
       recognized_text: data.guess,
       message: data.message,
       attempts_left: data.attempts_left,
-      match: data.result === "correct", //Not sure yet
-      can_change_passphrase: data.can_change_passphrase,
+      match: data.result === "correct",
+      can_create_secret: data.can_create_secret,
+      locked_until: data.locked_until,
+    }
+
+    // Send result to server to be stored as metadata
+    await fetch("/api/send-metadata", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mapped_data),
     });
+
+    //showResult expected format
+    showResult(mapped_data);
   } catch (err) {
     console.error("Error submitting guess:", err);
     resultMessage.textContent = "Error: could not submit guess.";
@@ -56,6 +71,13 @@ async function uploadAudioToServer(blob) {
       method: "POST",
       body: formData,
     });
+
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await response.text();
+      console.error("Non-JSON response from server:", text);
+      throw new Error("Server returned non-JSON response (likely HTML error page).");
+    }
 
     const data = await response.json();
     console.log("upload-audio response:", data);
@@ -84,6 +106,89 @@ async function uploadAudioToServer(blob) {
 }
 
 
+// Function to format time remaining
+function formatTimeRemaining(lockedUntil) {
+  const now = new Date();
+  const unlockTime = new Date(lockedUntil);
+  const diff = unlockTime - now;
+
+  if (diff <= 0) {
+    return null; // Lockout has expired
+  }
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  if (hours > 0) {
+    return `${hours} hour${hours !== 1 ? 's' : ''} and ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+  } else {
+    return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+  }
+}
+
+// Update lockout display with current time remaining
+function updateLockoutDisplay(lockedUntil) {
+  const timeRemaining = formatTimeRemaining(lockedUntil);
+  
+  if (!timeRemaining) {
+    // Lockout expired, reload to get new attempts
+    location.reload();
+    return false;
+  }
+  
+  statusText.textContent = `You're out of attempts. Try again in ${timeRemaining}.`;
+  return true;
+}
+
+// Check and display lockout status
+function checkLockoutStatus(data) {
+  // Clear any existing lockout interval
+  if (lockoutInterval) {
+    clearInterval(lockoutInterval);
+    lockoutInterval = null;
+  }
+  
+  if (data.attempts_left === 0 && data.locked_until) {
+    const timeRemaining = formatTimeRemaining(data.locked_until);
+    
+    if (timeRemaining) {
+      // User is locked out
+      recordBtn.disabled = true;
+      recordBtn.textContent = "🔒 Locked";
+      recordBtn.style.opacity = "0.5";
+      recordBtn.style.cursor = "not-allowed";
+      
+      statusText.textContent = `You're out of attempts. Try again in ${timeRemaining}.`;
+      statusText.style.color = "var(--danger)";
+      
+      // Update the countdown every minute
+      lockoutInterval = setInterval(() => {
+        const stillLocked = updateLockoutDisplay(data.locked_until);
+        if (!stillLocked && lockoutInterval) {
+          clearInterval(lockoutInterval);
+          lockoutInterval = null;
+        }
+      }, 60000); // Update every minute
+      
+      // Set up a timer to refresh the page when lockout expires
+      setTimeout(() => {
+        location.reload();
+      }, new Date(data.locked_until) - new Date());
+    } else {
+      // Lockout expired, reload to get new attempts
+      location.reload();
+    }
+  } else {
+    // Not locked out, ensure button is enabled
+    recordBtn.disabled = false;
+    recordBtn.textContent = "🎙 Start Recording";
+    recordBtn.style.opacity = "1";
+    recordBtn.style.cursor = "pointer";
+    statusText.textContent = "Ready to record your guess.";
+    statusText.style.color = "";
+  }
+}
+
 async function loadGameState() {
   try {
     const response = await fetch("/api/game-state");
@@ -95,66 +200,93 @@ async function loadGameState() {
     if (attemptsEl && typeof data.attempts_left === "number") {
       attemptsEl.textContent = data.attempts_left;
     }
+
+    // Update hint on page load
+    if (hintText && data.hint) {
+      hintText.textContent = data.hint;
+    }
+
+    // Check lockout status
+    checkLockoutStatus(data);
+
+    // Check if user can create a secret
+    if (data.can_create_secret) {
+      showNewSecretModal();
+    }
   } catch (err) {
     console.error("Error loading game state:", err);
   }
 }
 
 
-async function submitNewPassphrase() {
-  if (!newPassphraseInput) return;
+async function submitNewSecret() {
+  if (!newSecretInput || !newHintInput) return;
 
-  const passphrase = newPassphraseInput.value.trim();
-  if (!passphrase) {
-    resultMessage.textContent = "Passphrase cannot be empty.";
+  const secretPhrase = newSecretInput.value.trim();
+  const hint = newHintInput.value.trim();
+  
+  if (!secretPhrase) {
+    resultMessage.textContent = "Secret phrase cannot be empty.";
+    resultMessage.className = "result-message error";
+    return;
+  }
+
+  if (!hint) {
+    resultMessage.textContent = "Hint cannot be empty.";
     resultMessage.className = "result-message error";
     return;
   }
 
   try {
-    const response = await fetch("/api/set-passphrase", {
+    const response = await fetch("/api/create-secret", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ passphrase }),
+      body: JSON.stringify({ secret_phrase: secretPhrase, hint: hint }),
     });
 
     const data = await response.json();
-    console.log("set-passphrase response:", data);
+    console.log("create-secret response:", data);
 
     if (response.ok) {
-      resultMessage.textContent = data.message || "New passphrase set.";
+      resultMessage.textContent = data.message || "New secret created.";
       resultMessage.className = "result-message success";
-      if (attemptsEl && typeof data.attempts_left === "number") {
-        attemptsEl.textContent = data.attempts_left;
-      }
-      newPassphraseInput.value = "";
-      hideNewPassphraseModal();
+      newSecretInput.value = "";
+      newHintInput.value = "";
+      hideNewSecretModal();
+      
+      // Reload the game state to get the new secret
+      setTimeout(() => {
+        location.reload();
+      }, 1500);
     } else {
       resultMessage.textContent =
-        data.error || "Error: could not set new passphrase.";
+        data.error || "Error: could not create new secret.";
       resultMessage.className = "result-message error";
     }
   } catch (err) {
-    console.error("Error setting new passphrase:", err);
-    resultMessage.textContent = "Error: could not set new passphrase.";
+    console.error("Error creating new secret:", err);
+    resultMessage.textContent = "Error: could not create new secret.";
     resultMessage.className = "result-message error";
   }
 }
 
 // ---------------- UI HELPERS ---------------- //
 
-function showNewPassphraseModal() {
-  if (!newPassphraseModal) return;
-  newPassphraseModal.classList.remove("hidden");
-  if (newPassphraseInput) {
-    newPassphraseInput.value = "";
-    newPassphraseInput.focus();
+function showNewSecretModal() {
+  if (!newSecretModal) return;
+  newSecretModal.classList.remove("hidden");
+  if (newSecretInput) {
+    newSecretInput.value = "";
+    newSecretInput.focus();
+  }
+  if (newHintInput) {
+    newHintInput.value = "";
   }
 }
 
-function hideNewPassphraseModal() {
-  if (!newPassphraseModal) return;
-  newPassphraseModal.classList.add("hidden");
+function hideNewSecretModal() {
+  if (!newSecretModal) return;
+  newSecretModal.classList.add("hidden");
 }
 
 
@@ -167,7 +299,7 @@ async function onRecordStart() {
     return;
   }
 
-  try{
+  try {
     // Request microphone access if not already granted
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -231,7 +363,8 @@ function showResult({
   message,
   attempts_left,
   recognized_text,
-  can_change_passphrase,
+  can_create_secret,
+  locked_until,
 }) {
   guessText.textContent = recognized_text ?? "—";
   resultMessage.textContent = message ?? "";
@@ -243,28 +376,77 @@ function showResult({
     attemptsEl.textContent = attempts_left;
   }
 
-  if (can_change_passphrase) {
-    showNewPassphraseModal();
+  if (can_create_secret) {
+    showNewSecretModal();
   }
 
-  statusText.textContent = "Waiting to start...";
+  // Handle lockout
+  // Clear any existing lockout interval
+  if (lockoutInterval) {
+    clearInterval(lockoutInterval);
+    lockoutInterval = null;
+  }
+  
+  if (attempts_left === 0 && locked_until) {
+    const timeRemaining = formatTimeRemaining(locked_until);
+    if (timeRemaining) {
+      recordBtn.disabled = true;
+      recordBtn.textContent = "🔒 Locked";
+      recordBtn.style.opacity = "0.5";
+      recordBtn.style.cursor = "not-allowed";
+      
+      statusText.textContent = `You're out of attempts. Try again in ${timeRemaining}.`;
+      statusText.style.color = "var(--danger)";
+      
+      // Update the countdown every minute
+      lockoutInterval = setInterval(() => {
+        const stillLocked = updateLockoutDisplay(locked_until);
+        if (!stillLocked && lockoutInterval) {
+          clearInterval(lockoutInterval);
+          lockoutInterval = null;
+        }
+      }, 60000); // Update every minute
+      
+      // Set up a timer to refresh the page when lockout expires
+      setTimeout(() => {
+        location.reload();
+      }, new Date(locked_until) - new Date());
+    }
+  } else if (attempts_left > 0) {
+    statusText.textContent = "Ready to record your guess.";
+    statusText.style.color = "";
+  }
 }
 
 // Attach UI behavior
 // Temporary: toggle only
 recordBtn?.addEventListener("click", () => {
+  // Prevent interaction if button is disabled (locked out)
+  if (recordBtn.disabled) {
+    return;
+  }
+  
   if (!isRecording) onRecordStart();
   else onRecordStop();
 });
 
-// Modal buttons
-setPassphraseBtn?.addEventListener("click", submitNewPassphrase);
-closePassphraseBtn?.addEventListener("click", hideNewPassphraseModal);
+// Modal button
+createSecretBtn?.addEventListener("click", submitNewSecret);
 
-// Allow Enter to submit new passphrase
-newPassphraseInput?.addEventListener("keydown", (event) => {
+// Allow Enter to submit new secret from phrase input
+newSecretInput?.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
-    submitNewPassphrase();
+    // Move focus to hint input if phrase is filled
+    if (newSecretInput.value.trim() && newHintInput) {
+      newHintInput.focus();
+    }
+  }
+});
+
+// Allow Enter to submit new secret from hint input
+newHintInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    submitNewSecret();
   }
 });
 

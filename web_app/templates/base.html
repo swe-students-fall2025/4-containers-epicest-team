@@ -33,10 +33,24 @@
   </nav>
 <!-- Page content -->
   <main class="main-wrapper">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flashes">
+      {% for category, message in messages %}
+      <div class="result-message {{ category }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
     {% block content %}{% endblock %}
   </main>
 
   <!-- JS hook -->
+  <script>
+    const current_user = {% if current_user.is_authenticated %}{{ current_user.username | tojson }} {% else %} null{% endif %};
+  </script>
   <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
 </body>
+
 </html>

@@ -5,10 +5,15 @@
 {% block content %}
 <div class="game-layout">
   <section class="game-card">
-    <h1 class="game-title">Guess the Passphrase</h1>
+    <h1 class="game-title">Guess the Secret Passphrase</h1>
     <p class="game-subtitle">
       Press <span class="highlight">Record</span>, say your guess, and we’ll check it against the secret passphrase.
     </p>
+
+    <div class="hint-box">
+      <div class="hint-label">💡 Hint:</div>
+      <div id="hint-text" class="hint-value">Loading hint...</div>
+    </div>
 
     <div class="info-row">
       <div class="info-label">Status:</div>
@@ -43,25 +48,31 @@
       <li>Track results + attempts in real-time.</li>
     </ol>
   </section>
-  <!-- New passphrase modal/box -->
-<div id="new-passphrase-modal" class="modal hidden">
+  <!-- Create new secret modal -->
+<div id="new-secret-modal" class="modal hidden">
   <div class="modal-content">
-    <h2 class="modal-title">Set a new passphrase</h2>
+    <h2 class="modal-title">🎉 You Won! Create a New Secret</h2>
     <p class="modal-text">
-      You guessed the current passphrase correctly. Enter a new one below for
+      You guessed the secret correctly! Enter a new one below for
       the next round of the game.
     </p>
 
     <input
-      id="new-passphrase-input"
+      id="new-secret-input"
       type="text"
       class="modal-input"
-      placeholder="Type your new passphrase"
+      placeholder="Enter your secret phrase"
+    />
+
+    <input
+      id="new-hint-input"
+      type="text"
+      class="modal-input"
+      placeholder="Enter a hint for the secret"
     />
 
     <div class="modal-actions">
-      <button id="set-passphrase-btn" class="btn-primary">Save</button>
-      <button id="close-passphrase-btn" class="btn-secondary">Cancel</button>
+      <button id="create-secret-btn" class="btn-primary">Create Secret</button>
     </div>
   </div>
 </div>
