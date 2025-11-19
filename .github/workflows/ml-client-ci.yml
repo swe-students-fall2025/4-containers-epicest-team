@@ -33,10 +33,13 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Install pipenv
+        run: |
+          pip install pipenv
+
       - name: Install dependencies
         run: |
-          pip install --no-cache-dir -r requirements.txt
-          pip install black pylint pytest pytest-cov
+          pipenv install --deploy --system --dev
 
       - name: Lint with pylint
         run: |
@@ -52,8 +55,7 @@ jobs:
       
       - name: Cleanup Python packages to free space
         run: |
-          pip uninstall -y -r requirements.txt
-          pip uninstall -y black pylint pytest pytest-cov
+          pip cache purge || true
 
       - name: Build Docker image
         run: |
