@@ -1,4 +1,4 @@
-# pylint: disable=wrong-import-position, import-error
+# pylint: skip-file
 
 import sys
 from pathlib import Path
