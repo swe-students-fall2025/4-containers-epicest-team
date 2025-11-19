@@ -25,10 +25,10 @@ class TestInitMongo:
 
     def test_init_mongo_success(self, monkeypatch):
         """init_mongo with valid credentials should connect successfully."""
-        monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017")
-        monkeypatch.setenv("MONGO_DB", "testdb")
-        monkeypatch.setenv("MONGO_USER", "testuser")
-        monkeypatch.setenv("MONGO_PASS", "testpass")
+        monkeypatch.setattr("web_app.app.MONGO_URI", "mongodb://localhost:27017")
+        monkeypatch.setattr("web_app.app.MONGO_DB", "testdb")
+        monkeypatch.setattr("web_app.app.MONGO_USER", "testuser")
+        monkeypatch.setattr("web_app.app.MONGO_PASS", "testpass")
 
         mock_client = MagicMock()
         mock_db = MagicMock()
@@ -52,10 +52,10 @@ class TestInitMongo:
 
     def test_init_mongo_connection_error(self, monkeypatch):
         """init_mongo with connection error should return None."""
-        monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017")
-        monkeypatch.setenv("MONGO_DB", "testdb")
-        monkeypatch.setenv("MONGO_USER", "testuser")
-        monkeypatch.setenv("MONGO_PASS", "testpass")
+        monkeypatch.setattr("web_app.app.MONGO_URI", "mongodb://localhost:27017")
+        monkeypatch.setattr("web_app.app.MONGO_DB", "testdb")
+        monkeypatch.setattr("web_app.app.MONGO_USER", "testuser")
+        monkeypatch.setattr("web_app.app.MONGO_PASS", "testpass")
 
         with patch(
             "web_app.app.pymongo.MongoClient",
