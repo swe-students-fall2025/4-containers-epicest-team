@@ -11,6 +11,10 @@ Full version with:
 # pylint: disable=import-error
 
 import uuid
+import os
+from pathlib import Path
+from datetime import datetime
+from dotenv import load_dotenv
 
 from flask import (
     Flask,
@@ -285,7 +289,7 @@ def create_app():
         return render_template("dashboard.html")
 
     # -------------------------
-    # API ROUTES (PLACEHOLDERS)
+    # API ROUTES
     # -------------------------
     @app_instance.route("/api/game-state", methods=["GET"])
     @login_required
@@ -399,6 +403,29 @@ def create_app():
             200,
         )
 
+    @app_instance.route("/api/send-metadata", methods=["POST"])
+    @login_required
+    def send_metadata():
+        """Sends guess metadata to database."""
+        metadata = request.get_json() or {}
+        
+        if not metadata:
+            return jsonify({"error": "Metadata cannot be empty"}), 400
+
+        if db is not None:
+            try:
+                db.metadata.insert_one({
+                    "user_id": g.player_id,
+                    "username": current_user.username,
+                    "metadata": metadata,
+                    "timestamp": datetime.now().isoformat()
+                })
+                return jsonify({"message": "Metadata saved successfully"}), 200
+            except Exception as e:
+                return jsonify({"error": f"Database error: {str(e)}"}), 500
+        else:
+             return jsonify({"error": "Database not configured"}), 503
+        
     @app_instance.route("/api/reset", methods=["POST"])
     @login_required
     def reset_game():

@@ -32,14 +32,24 @@ async function submitGuessToAPI(guess) {
     const data = await response.json();
     console.log("submit-guess response:", data);
 
-    // Map backend → showResult expected format
-    showResult({
+    // Map backend
+    const mapped_data = {
       recognized_text: data.guess,
       message: data.message,
       attempts_left: data.attempts_left,
-      match: data.result === "correct", //Not sure yet
+      match: data.result === "correct",
       can_change_passphrase: data.can_change_passphrase,
+    }
+
+    // Send result to server to be stored as metadata
+    response = await fetch("/api/send-metadata", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mapped_data),
     });
+
+    //showResult expected format
+    showResult(mapped_data);
   } catch (err) {
     console.error("Error submitting guess:", err);
     resultMessage.textContent = "Error: could not submit guess.";
