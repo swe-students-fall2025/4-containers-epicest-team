@@ -33,6 +33,20 @@ from flask_login import (
     current_user,
 )
 
+import pymongo
+
+PARENT_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = PARENT_DIR / ".env"
+load_dotenv(dotenv_path=ENV_PATH)
+
+MONGO_URI = os.getenv("MONGO_URI")
+MONGO_DB = os.getenv("MONGO_DB")
+MONGO_USER = os.getenv("MONGO_USER")
+MONGO_PASS= os.getenv("MONGO_PASS")
+
+mongo_client = None
+db = None
+
 # per-user in-memory state just for now (will be replaced by Mongo later)
 # {
 #   player_id: {
@@ -45,6 +59,22 @@ from flask_login import (
 PLAYER_STATES = {}
 
 DEFAULT_SECRET_PHRASE = "open sesame"
+
+def init_mongo():
+    """Initialize MongoDB connection"""
+    if MONGO_URI and MONGO_DB and MONGO_USER and MONGO_PASS:
+        try:
+            mongo_client = pymongo.MongoClient(MONGO_URI, username=MONGO_USER, password=MONGO_PASS)
+            db = mongo_client[MONGO_DB]
+            print(f"Connected to MongoDB: {MONGO_DB}")
+            return mongo_client, db
+        except Exception as e:
+            print(f"Failed to connect to MongoDB: {e}")
+            return None, None
+    else:
+        print("Missing MongoDB connection parameters")
+        return None, None
+
 
 # very simple in-memory users store for login
 # USERS = {
@@ -97,6 +127,9 @@ def create_app():
     login_manager = LoginManager()
     login_manager.init_app(app_instance)
     login_manager.login_view = "login"  # endpoint name for @login_required redirects
+
+    # initialize mongo
+    mongo_client, db = init_mongo()
 
     @login_manager.user_loader
     def load_user(username):
