@@ -3,37 +3,40 @@ Functionality to handle speech transcription and password checking
 """
 
 import string
+
 import whisper
 
 
-def load_whisper_model(model_name: str):
+def load_whisper_model(model_name: str = "small"):
     """
-    Helper to load local model for speech transcription
-
-    Parameters:
-    model_name (str)
+    Helper to load Whisper model
 
     Returns:
-    whisper.model or None if model does not exist
+        whisper.model
     """
-    return whisper.load_model(model_name, device="cpu")
+    try:
+        print(f"[ml-client] Loading Whisper model '{model_name}'...")
+        model = whisper.load_model(model_name, in_memory=True, device="cpu")
+        print("[ml-client] Whisper model loaded.")
+        return model
+    except RuntimeError as e:
+        raise RuntimeError(
+            f"[ml-client] Unable to load Whisper model {model_name}"
+        ) from e
 
 
-def transcribe_audio(
-    audio_path: str, model_name: str = "small"
-) -> tuple[list[str], bool]:
+def transcribe_audio(audio_path: str, model) -> tuple[list[str], bool]:
     """
     Helper to run speech transcription
 
     Parameters:
     audio_path (str)
-    model_name (str)
+    model: (Whisper) loaded speech transcription model
 
     Returns:
     tuple[list[str], bool] regardless of transcription success
     If transcription success, return True
     """
-    model = load_whisper_model(model_name)
     try:
         result = model.transcribe(audio_path)
         return (
@@ -41,27 +44,8 @@ def transcribe_audio(
             .lower()
             .strip()
             .translate(str.maketrans("", "", string.punctuation))
-            .split(),
+            .strip(),
             True,
         )
-    except (FileNotFoundError, ValueError, RuntimeError):
-        return ["Transcription Failed"], False
-
-
-def check_password_in_transcription(
-    password: str, query: list[str], transcription_success: bool
-) -> bool:
-    """
-    Helper to check
-
-    Parameters:
-    password (str)
-    query (list of str)
-    transcription_failed (bool)
-
-    Returns:
-    bool if transcription did not fail, None if transcription failed
-    """
-    if not transcription_success:
-        return None
-    return password.lower().strip() in query
+    except (AttributeError, FileNotFoundError, ValueError, RuntimeError):
+        return "Transcription Failed", False

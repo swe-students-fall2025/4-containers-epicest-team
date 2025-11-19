@@ -14,33 +14,11 @@ const closePassphraseBtn = document.getElementById("close-passphrase-btn");
 
 let isRecording = false;
 
+let mediaRecorder = null;
+let recordedChunks = [];
+let stopTimer = null;
+
 // ---------------- API HELPERS ---------------- //
-
-async function submitGuessToAPI(guess) {
-  try {
-    const response = await fetch("/api/submit-guess", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ guess }),
-    });
-
-    const data = await response.json();
-    console.log("submit-guess response:", data);
-
-    // Map backend → showResult expected format
-    showResult({
-      recognized_text: data.guess,
-      message: data.message,
-      attempts_left: data.attempts_left,
-      match: data.result === "correct", //Not sure yet
-      can_change_passphrase: data.can_change_passphrase,
-    });
-  } catch (err) {
-    console.error("Error submitting guess:", err);
-    resultMessage.textContent = "Error: could not submit guess.";
-    resultMessage.className = "result-message error";
-  }
-}
 
 async function loadGameState() {
   try {
@@ -50,8 +28,8 @@ async function loadGameState() {
     console.log("game-state:", data);
 
     // Update attempts on page load
-    if (attempts && typeof data.attempts_left === "number") {
-      attempts.textContent = data.attempts_left;
+    if (attemptsEl && typeof data.attempts_left === "number") {
+      attemptsEl.textContent = data.attempts_left;
     }
   } catch (err) {
     console.error("Error loading game state:", err);
@@ -115,6 +93,47 @@ function hideNewPassphraseModal() {
   newPassphraseModal.classList.add("hidden");
 }
 
+// ---------------- RECORDING + AUDIO UPLOAD ---------------- //
+
+async function sendAudioToServer(blob) {
+  statusText.textContent = "Uploading…";
+
+  const formData = new FormData();
+  formData.append("audio", blob, "recording.webm");
+
+  try {
+    const response = await fetch("/api/submit-guess", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+    console.log("upload-audio response:", data);
+
+    showResult({
+      recognized_text: data.guess,
+      message: data.message,
+      attempts_left: data.attempts_left,
+      match: data.result === "correct",
+      can_change_passphrase: data.can_change_passphrase,
+    });
+
+  } catch (err) {
+    console.error("Error submitting guess:", err);
+    statusText.textContent = "Server error.";
+    resultMessage.textContent = "Error: could not submit guess.";
+    resultMessage.className = "result-message error";
+  }
+}
+
+function stopRecordingAndUpload() {
+    if (stopTimer) clearTimeout(stopTimer);
+
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+    }
+}
+
 
 // ---------------- UI BEHAVIOR ---------------- //
 
@@ -122,17 +141,40 @@ function onRecordStart() {
   isRecording = true;
   statusText.textContent = "Listening...";
   recordBtn.textContent = "🛑 Stop Recording";
-    // Later: start real mic recording and send audio to ML.
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0) recordedChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: "audio/webm" });
+                sendAudioToServer(blob);
+            };
+
+            mediaRecorder.start();
+            console.log("Recording started");
+
+            stopTimer = setTimeout(() => {
+                stopRecordingAndUpload();
+            }, 4000);
+        })
+        .catch(err => {
+            console.error("Microphone error:", err);
+            statusText.textContent = "Microphone unavailable.";
+            recordBtn.textContent = "🎙 Start Recording";
+            isRecording = false;
+        });
 }
 
 function onRecordStop() {
-  isRecording = false;
-  statusText.textContent = "Waiting to start...";
-  recordBtn.textContent = "🎙 Start Recording";
-
-// Fake guess for now — ML team will replace this
-  const fakeGuess = "placeholder guess";
-  submitGuessToAPI(fakeGuess);
+    isRecording = false;
+    statusText.textContent = "Waiting to start...";
+    recordBtn.textContent = "🎙 Start Recording";
+    stopRecordingAndUpload();
 }
 
 

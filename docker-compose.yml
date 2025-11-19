@@ -1,0 +1,69 @@
+volumes:
+  mongodb_data:
+
+services:
+  database:
+    image: mongodb/mongodb-community-server:8.0-ubi8
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root_user
+      - MONGO_INITDB_ROOT_PASSWORD=root_password
+      - MONGO_INITDB_DATABASE=codebreaker
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    networks:
+      - backend
+#    healthcheck:
+#      test: ["CMD-SHELL", "echo 'db.runCommand({ping: 1})' | mongosh --quiet"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+
+  ml-client:
+    build:
+      context: ./machine-learning-client
+      dockerfile: Dockerfile
+    container_name: ml-client
+    ports:
+      # Exposes ML API externally on 5001.
+      - "5001:5001"
+    depends_on:
+      database:
+        condition: service_started
+    environment:
+      # FIX 2: Ensure connection string uses the service name 'database'
+      - MONGO_URI=mongodb://root_user:root_password@database:27017/codebreaker
+      - MONGO_DB=codebreaker
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - backend
+
+  web-app:
+    build:
+      context: ./web-app
+      dockerfile: Dockerfile
+    container_name: web-app
+    ports:
+      # Exposes web app externally on 5000 (usually default for Flask)
+      - "5000:5000"
+    depends_on:
+      database:
+        condition: service_started
+      ml-client:
+        condition: service_started
+    environment:
+      - ML_URL=http://ml-client:5001
+      # FIX 4: Pass the MONGO_URI and DB for the web-app
+      - MONGO_URI=mongodb://root_user:root_password@database:27017/codebreaker
+      - MONGO_DB=codebreaker
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

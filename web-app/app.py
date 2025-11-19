@@ -9,29 +9,15 @@ Full version with:
 """
 
 # pylint: disable=import-error
-
+import os
 import uuid
 
-from flask import (
-    Flask,
-    render_template,
-    request,
-    jsonify,
-    g,
-    redirect,
-    url_for,
-    flash,
-)
-from werkzeug.security import generate_password_hash, check_password_hash
-
-from flask_login import (
-    LoginManager,
-    UserMixin,
-    login_user,
-    logout_user,
-    login_required,
-    current_user,
-)
+import requests
+from flask import (Flask, flash, g, jsonify, redirect, render_template,
+                   request, url_for)
+from flask_login import (LoginManager, UserMixin, login_required, login_user,
+                         logout_user)
+from werkzeug.security import check_password_hash, generate_password_hash
 
 # per-user in-memory state just for now (will be replaced by Mongo later)
 # {
@@ -54,6 +40,12 @@ DEFAULT_SECRET_PHRASE = "open sesame"
 # }
 USERS = {}
 
+ML_URL = os.environ.get("ML_URL", "http://ml-client:5001")
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://mongo:27017")
+MONGO_DB = os.environ.get("MONGO_DB", "codebreaker")
+UPLOAD_DIR = "/tmp/codebreaker_uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 
 def get_or_create_state(player_id: str):
     """Fetch or initialize the player's game state."""
@@ -72,10 +64,7 @@ class User(UserMixin):
 
     def __init__(self, username: str):
         self.id = username  # Flask-Login expects .id
-
-    @property
-    def username(self):
-        return self.id
+        self.username = username
 
 
 def create_app():
@@ -145,6 +134,7 @@ def create_app():
                 return redirect(url_for("register"))
 
             USERS[username] = {
+                "user_id": username,
                 "password_hash": generate_password_hash(password),
             }
 
@@ -221,24 +211,70 @@ def create_app():
         - compares the text guess to the secret_phrase
         - tracks attempts_left per player_id
         - returns whether the guess was correct and if the user may set a new passphrase
-
-        Later:
-        - we can plug in the ML transcription so the guess comes from audio
         """
-        data = request.get_json() or {}
-        guess = (data.get("guess", "")).strip()
 
+        user_id = g.player_id
+        payload = {"user_id": user_id}
         state = get_or_create_state(g.player_id)
-
         # No attempts left
         if state["attempts_left"] <= 0:
             return (
                 jsonify(
                     {
                         "message": "No attempts left for this passphrase.",
-                        "guess": guess,
+                        "guess": None,
                         "attempts_left": state["attempts_left"],
                         "result": "no_attempts",
+                        "match": False,
+                        "can_change_passphrase": False,
+                    }
+                ),
+                200,
+            )
+
+        if "audio" not in request.files:
+            return jsonify({"error": "No audio file"}), 400
+
+        audio_file = request.files["audio"]
+
+        filename = f"{uuid.uuid4()}.webm"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        audio_file.save(filepath)
+
+        max_retries = 2
+        payload = {"user_id": user_id}
+        ml_result = None
+        guess = None
+
+        for _ in range(max_retries):
+            with open(filepath, "rb") as f:
+                files = {"audio": f}
+
+                try:
+                    resp = requests.post(
+                        f"{ML_URL}/transcribe", files=files, data=payload, timeout=120
+                    )
+                    ml_result = resp.json()
+                except requests.RequestException as e:
+                    ml_result = {
+                        "transcription_success": False,
+                        "guess": "Transcription Failed",
+                    }
+
+            success = ml_result.get("transcription_success", False)
+            guess = ml_result.get("transcription", "")
+
+            if success and len(guess) != 0 and guess != "Transcription Failed":
+                break
+        if not ml_result.get("transcription_success", False):
+            state["last_result"] = "incorrect"
+            return (
+                jsonify(
+                    {
+                        "message": "Transcription failed. Please try again.",
+                        "guess": guess,
+                        "attempts_left": state["attempts_left"],  # unchanged
+                        "result": "incorrect",
                         "match": False,
                         "can_change_passphrase": False,
                     }
@@ -251,7 +287,7 @@ def create_app():
         state["last_guess"] = guess
 
         # Check correct guess
-        if guess.lower() == state["secret_phrase"].lower():
+        if state["secret_phrase"].lower() in guess:
             state["last_result"] = "correct"
             return (
                 jsonify(
@@ -341,4 +377,4 @@ def create_app():
 
 if __name__ == "__main__":
     flask_app = create_app()
-    flask_app.run(host="0.0.0.0", port=3000, debug=True)
+    flask_app.run(host="0.0.0.0", port=5000, debug=True, ssl_context="adhoc")
