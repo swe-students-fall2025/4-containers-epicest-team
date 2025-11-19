@@ -14,14 +14,19 @@ from fastapi import FastAPI, UploadFile, Form, File
 
 from ml_client import speech_analysis
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongo:27017")
-MONGO_DB = os.getenv("MONGO_DB", "codebreaker")
-AUDIO_DIR = "/tmp/audio_uploads"
+MONGO_URI = os.getenv("MONGO_URI")
+MONGO_DB = os.getenv("MONGO_DB")
+AUDIO_DIR = os.getenv("AUDIO_DIR")
+MONGO_USER = os.getenv("MONGO_USER")
+MONGO_PASS = os.getenv("MONGO_PASS")
+
 os.makedirs(AUDIO_DIR, exist_ok=True)
 app = FastAPI(title="ML Client")
 
 try:
-    mongo_client = pymongo.MongoClient(MONGO_URI)
+    mongo_client = pymongo.MongoClient(
+        MONGO_URI, username=MONGO_USER, password=MONGO_PASS
+    )
     mongo_db = mongo_client[MONGO_DB]
 except (TypeError, AttributeError, pymongo.errors.PyMongoError) as e:
     print("Could not connect to MongoDB at startup:", e)
@@ -29,7 +34,6 @@ except (TypeError, AttributeError, pymongo.errors.PyMongoError) as e:
     mongo_db = None
 
 app.state.model = None
-
 
 @app.on_event("startup")
 def startup_event():
