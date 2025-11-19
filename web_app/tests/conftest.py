@@ -2,44 +2,82 @@
 
 import sys
 from pathlib import Path
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock
 import pytest
 
-# ------------------------------------------------------------
-# FIX PYTHON IMPORT PATH SO THAT `web_app.app` CAN BE IMPORTED
-# ------------------------------------------------------------
-# This adds the project root to sys.path, allowing:
-#     from web_app.app import create_app
-#
-# It works for:
-# - local development
-# - pytest
-# - GitHub Actions CI
-# - Docker CI
-#
-ROOT = Path(__file__).resolve().parents[2]  # up from tests/ → web_app/ → project root
+
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-
-# ------------------------------------------------------------
-# NOW WE CAN IMPORT THE FLASK APPLICATION PROPERLY
-# ------------------------------------------------------------
-from web_app.app import create_app  # noqa: E402  (import after sys.path fix)
-from web_app.app import USERS  # noqa: E402
+from web_app.app import create_app
 
 
-# ------------------------------------------------------------
-# PYTEST FIXTURES
-# ------------------------------------------------------------
+## Establish environment for testing (mock database, mock client)
 
 
 @pytest.fixture
-def app():
-    """Create a fresh Flask app for each test run."""
-    app = create_app()
-    app.config["TESTING"] = True
-    app.config["WTF_CSRF_ENABLED"] = False
-    app.config["SECRET_KEY"] = "test"
-    return app
+def mock_db():
+    """Create a mocked MongoDB database with all necessary collections."""
+    db = MagicMock()
+
+    db.users = MagicMock()
+    db.secrets = MagicMock()
+    db.game_states = MagicMock()
+    db.metadata = MagicMock()
+
+    return db
+
+
+@pytest.fixture
+def mock_mongo_client(mock_db):
+    """Create a mocked MongoDB client."""
+    client = MagicMock()
+    client.__getitem__.return_value = mock_db
+    return client
+
+
+@pytest.fixture
+def active_secret():
+    """Return a mock active secret document."""
+    return {
+        "secret_id": "test-secret-123",
+        "secret_phrase": "Open Sesame",
+        "hint": "A classic phrase to unlock a secret",
+        "created_at": datetime.now().isoformat(),
+        "wrong_guesses": 0,
+        "solved_at": None,
+    }
+
+
+@pytest.fixture
+def mock_user():
+    """Return a mock user document."""
+    return {
+        "username": "testuser",
+        "password_hash": "pbkdf2:sha256:260000$test$hash",
+        "user_uuid": "test-user-uuid-123",
+        "created_at": datetime.now().isoformat(),
+    }
+
+
+@pytest.fixture
+def app(monkeypatch, mock_db, mock_mongo_client, active_secret):
+    """Create a fresh Flask app for each test run with mocked MongoDB."""
+
+    def mock_init_mongo():
+        return mock_mongo_client, mock_db
+
+    monkeypatch.setattr("web_app.app.init_mongo", mock_init_mongo)
+
+    mock_db.secrets.find_one.return_value = active_secret
+
+    app_instance = create_app()
+    app_instance.config["TESTING"] = True
+    app_instance.config["WTF_CSRF_ENABLED"] = False
+    app_instance.config["SECRET_KEY"] = "test-secret-key"
+
+    return app_instance
 
 
 @pytest.fixture
@@ -49,14 +87,49 @@ def client(app):
 
 
 @pytest.fixture
-def logged_in_client(app, client):
+def logged_in_client(client, mock_db, mock_user):
     """
-    Creates & logs in a test user.
+    Creates a logged-in test user session.
     Allows tests to hit @login_required routes.
     """
-    USERS["testuser"] = {"password_hash": ""}
+    # Mock user lookup for Flask-Login
+    mock_db.users.find_one.return_value = mock_user
 
+    # Create session with logged-in user
     with client.session_transaction() as sess:
         sess["_user_id"] = "testuser"
 
     return client
+
+
+@pytest.fixture
+def game_state():
+    """Return a mock game state document."""
+    return {
+        "user_uuid": "test-user-uuid-123",
+        "current_secret_id": "test-secret-123",
+        "attempts_left": 3,
+        "last_result": None,
+        "last_guess": None,
+        "can_create_secret": False,
+        "locked_until": None,
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat(),
+    }
+
+
+@pytest.fixture
+def locked_game_state(game_state):
+    """Return a game state with user locked out."""
+    locked = game_state.copy()
+    locked["attempts_left"] = 0
+    locked["locked_until"] = (datetime.now() + timedelta(hours=24)).isoformat()
+    return locked
+
+
+@pytest.fixture
+def winner_game_state(game_state):
+    """Return a game state where user can create a secret."""
+    winner = game_state.copy()
+    winner["can_create_secret"] = True
+    return winner
