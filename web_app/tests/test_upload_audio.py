@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from web_app.app import create_app  # noqa: E402
-from web_app.app import USERS       # noqa: E402
+from web_app.app import USERS  # noqa: E402
 
 
 @pytest.fixture
@@ -44,28 +44,20 @@ def test_upload_audio_valid_file(monkeypatch, logged_in_client):
 
     # Patch the stub to confirm it's invoked
     monkeypatch.setattr(
-        "web_app.app.transcribe_audio",
-        lambda f: "stubbed transcription"
+        "web_app.app.transcribe_audio", lambda f: "stubbed transcription"
     )
 
-    data = {
-        "audio_file": (
-            io.BytesIO(b"fakeaudio"),
-            "recording.webm",
-            "audio/webm"
-        )
-    }
+    data = {"audio_file": (io.BytesIO(b"fakeaudio"), "recording.webm", "audio/webm")}
 
     response = logged_in_client.post(
-        "/api/upload-audio",
-        data=data,
-        content_type="multipart/form-data"
+        "/api/upload-audio", data=data, content_type="multipart/form-data"
     )
 
     assert response.status_code == 200
 
     json_data = response.get_json()
     assert json_data["recognized_text"] == "stubbed transcription"
+
 
 def test_upload_audio_rejects_non_binary(logged_in_client):
     """
@@ -75,14 +67,10 @@ def test_upload_audio_rejects_non_binary(logged_in_client):
     fake_file = io.BytesIO(b"this is not audio data")
 
     # Simulate a text file instead of audio
-    data = {
-        "audio_file": (fake_file, "bad.txt")
-    }
+    data = {"audio_file": (fake_file, "bad.txt")}
 
     response = logged_in_client.post(
-        "/api/upload-audio",
-        data=data,
-        content_type="multipart/form-data"
+        "/api/upload-audio", data=data, content_type="multipart/form-data"
     )
 
     assert response.status_code == 400

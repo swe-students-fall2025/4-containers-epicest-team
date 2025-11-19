@@ -84,10 +84,11 @@ def create_app():
 
     # Add cache-busting version (automatic)
     import time
+
     @app_instance.context_processor
     def inject_version():
-        return {'version': int(time.time())}
-    
+        return {"version": int(time.time())}
+
     # REQUIRED for sessions / Flask-Login / flash()
     app_instance.config["SECRET_KEY"] = "dev-secret-change-me"
     # -------------------------
@@ -152,7 +153,7 @@ def create_app():
 
         if not file_storage or file_storage.filename == "":
             return jsonify({"error": "Empty audio file."}), 400
-             
+
         # Reject non-audio files
         if not file_storage.mimetype.startswith("audio/"):
             return jsonify({"error": "Invalid file type"}), 400
@@ -374,8 +375,10 @@ def create_app():
         )
 
     return app_instance
+
+
 # -------------------------
-# PLACEHOLDER ML INTEGRATION (NEED TO REPLACE)  
+# PLACEHOLDER ML INTEGRATION (NEED TO REPLACE)
 # -------------------------
 def transcribe_audio(file_storage) -> str:
     """

@@ -23,13 +23,14 @@ sys.path.insert(0, str(ROOT))
 # ------------------------------------------------------------
 # NOW WE CAN IMPORT THE FLASK APPLICATION PROPERLY
 # ------------------------------------------------------------
-from web_app.app import create_app   # noqa: E402  (import after sys.path fix)
-from web_app.app import USERS        # noqa: E402
+from web_app.app import create_app  # noqa: E402  (import after sys.path fix)
+from web_app.app import USERS  # noqa: E402
 
 
 # ------------------------------------------------------------
 # PYTEST FIXTURES
 # ------------------------------------------------------------
+
 
 @pytest.fixture
 def app():
