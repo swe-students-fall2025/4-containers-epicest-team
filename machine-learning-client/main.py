@@ -83,12 +83,10 @@ def transcribe(audio: UploadFile = File(...), user_id: str = Form(...)):
         }
 
         db["attempts"].insert_one(doc)
-    except (
-        Exception
-        ) as e:
+    except (AttributeError, pymongo.errors.PyMongoError) as e:
         traceback.print_exc()
 
-        print("[ml-client] Error during transcription:", e)
+        print("[ml-client] Error during transcription: ", e)
 
     # 4. Return summary to web app
     return {

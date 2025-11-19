@@ -37,7 +37,7 @@ def fixture_mock_speech_analysis():
 @pytest.fixture(name="mock_mongo_db")
 def fixture_mock_mongo_db():
     """Patch the MongoDB connection and insert method."""
-    with patch("main.mongo_db") as mock_db:
+    with patch("main.db") as mock_db:
         mock_db.__getitem__.return_value.insert_one.return_value = Mock()
         yield mock_db
 

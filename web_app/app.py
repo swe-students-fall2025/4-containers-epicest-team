@@ -11,35 +11,19 @@ Full version with:
 # pylint: disable=import-error
 
 import io
-import uuid
 import os
-from pathlib import Path
+import uuid
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
-
-from flask import (
-    Flask,
-    render_template,
-    request,
-    jsonify,
-    g,
-    redirect,
-    url_for,
-    flash,
-)
-from werkzeug.security import generate_password_hash, check_password_hash
-
-from flask_login import (
-    LoginManager,
-    UserMixin,
-    login_user,
-    logout_user,
-    login_required,
-    current_user,
-)
+from pathlib import Path
 
 import pymongo
 import requests
+from dotenv import load_dotenv
+from flask import (Flask, flash, g, jsonify, redirect, render_template,
+                   request, url_for)
+from flask_login import (LoginManager, UserMixin, current_user, login_required,
+                         login_user, logout_user)
+from werkzeug.security import check_password_hash, generate_password_hash
 
 PARENT_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = PARENT_DIR / ".env"
@@ -599,7 +583,7 @@ def create_app():
         state["last_guess"] = guess
 
         # Check correct guess
-        if (secret_phrase.lower() in guess.lower()):
+        if secret_phrase.lower() in guess.lower():
             state["last_result"] = "correct"
             state["can_create_secret"] = True
 
@@ -860,10 +844,7 @@ def transcribe_audio(file_storage) -> str:
             )
             ml_result = resp.json()
         except requests.RequestException as e:
-            ml_result = {
-                "transcription_success": False,
-                "transcription": None 
-            }
+            ml_result = {"transcription_success": False, "transcription": None}
 
         success = ml_result.get("transcription_success", False)
         guess = ml_result.get("transcription", "")
@@ -872,4 +853,9 @@ def transcribe_audio(file_storage) -> str:
 
 if __name__ == "__main__":
     flask_app = create_app()
-    flask_app.run(host="0.0.0.0", port=3000, debug=True, ssl_context=("/certs/cert.pem", "/certs/key.pem"))
+    flask_app.run(
+        host="0.0.0.0",
+        port=3000,
+        debug=True,
+        ssl_context=("/certs/cert.pem", "/certs/key.pem"),
+    )

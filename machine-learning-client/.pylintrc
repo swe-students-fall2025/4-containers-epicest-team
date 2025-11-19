@@ -1,2 +1,11 @@
 [MASTER]
+ignore-patterns=test_.*\.py,conftest\.py
 init-hook='import sys, os; sys.path.append(os.path.abspath("."))'
+
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-function-docstring,
+    redefined-outer-name,
+    unused-argument
+    invalid-name
