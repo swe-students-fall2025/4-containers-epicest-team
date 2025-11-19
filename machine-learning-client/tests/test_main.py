@@ -1,21 +1,15 @@
 """Pytest suite for the ML client (main.py)."""
 
 import os
-import sys
 import tempfile
 from unittest.mock import Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-# Fix import path so 'main' and 'speech_analysis' can be imported
-CURRENT_DIR = os.path.dirname(__file__)
-PARENT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
-if PARENT_DIR not in sys.path:
-    sys.path.insert(0, PARENT_DIR)
-
 # Import app components after path fix
-from main import app  # type: ignore[import]
+# type: ignore[import]
+from main import app, startup_event
 
 # --- Fixtures ---
 
@@ -54,10 +48,10 @@ def fixture_mock_mongo_db():
 def test_ml_client_startup_event_loads_model():
     """Test that the startup event attempts to load the model."""
     with patch("main.speech_analysis.load_whisper_model") as mock_load:
-        # Import main again to trigger the startup event logic (if not done by FastAPI)
-        # We manually call the decorated function since TestClient doesn't run startup events by default
-        from main import startup_event
-
+        # Import main again to trigger the
+        #startup event logic (if not done by FastAPI)
+        # We manually call the decorated function
+        #since TestClient doesn't run startup events by default
         startup_event()
         mock_load.assert_called_once()
 

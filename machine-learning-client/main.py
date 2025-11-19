@@ -28,21 +28,20 @@ except (TypeError, AttributeError, pymongo.errors.PyMongoError) as e:
     mongo_client = None
     mongo_db = None
 
-model = None
+app.state.model = None
 
 
 @app.on_event("startup")
 def startup_event():
     """Load model on start of ml client and keep in memory"""
-    global model
     try:
         print("[ml-client] Loading model at startup...")
-        model = speech_analysis.load_whisper_model()
+        app.state.model = speech_analysis.load_whisper_model()
         print("[ml-client] Model loaded.")
     except RuntimeError as e:
         print("[ml-client] Model load failed:", e)
         traceback.print_exc()
-        model = None
+        app.state.model = None
 
 
 @app.post("/transcribe")
@@ -60,7 +59,7 @@ def transcribe(audio: UploadFile = File(...), user_id: str = Form(...)):
         shutil.copyfileobj(audio.file, f)
 
     # Transcribe
-    words, success = speech_analysis.transcribe_audio(temp_path, model)
+    words, success = speech_analysis.transcribe_audio(temp_path, app.state.model)
     doc = {
         "user_id": user_id,
         "audio_path": temp_path,

@@ -798,18 +798,16 @@ def transcribe_audio(file_storage) -> str:
     - In the real project, this should call your ML client or an external STT service.
     """
     file_storage.read()
-    ML_URL = os.getenv("ML_URL")
-    user_id = current_user.user_uuid,
+    ml_url = os.getenv("ML_URL")
+    user_id = (current_user.user_uuid,)
     if not ML_URL:
         raise RuntimeError("Environment variable ML_URL is not set")
 
     audio_bytes = file_storage.read()
-    payload = {"user_id":user_id}
+    payload = {"user_id": user_id}
     for _ in range(2):
         file_obj = io.BytesIO(audio_bytes)
-        files = {
-            "audio": file_obj 
-        }                
+        files = {"audio": file_obj}
         try:
             resp = requests.post(
                 f"{ML_URL}/transcribe", files=files, data=payload, timeout=120

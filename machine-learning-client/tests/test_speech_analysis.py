@@ -2,24 +2,12 @@
 
 # pylint: disable=redefined-outer-name
 
-import os
-import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 
-# --- BEGIN PATH FIX FOR IMPORT ---
-# This ensures that 'ml_client' can be found when running tests from 'tests' directory.
-CURRENT_DIR = Path(__file__).resolve().parent
-# Assuming project root is one level above the 'tests' directory
-PROJECT_ROOT = CURRENT_DIR.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-# --- END PATH FIX FOR IMPORT ---
-
-# Now the import should resolve correctly
-from ml_client import speech_analysis  # type: ignore[import]
+from ml_client import speech_analysis
 
 # Mock Whisper's behavior for transcription tests
 MOCK_TRANSCRIPTION_RESULT = " Hello, There! "
@@ -33,7 +21,6 @@ TEST_WAV_PATH = Path(__file__).resolve().parent / "test_recordings" / "hello_the
 def model_name():
     """Fixture for model name to ensure consistent model use."""
     return "small"
-
 
 @pytest.fixture
 def mock_whisper_model():
@@ -62,7 +49,7 @@ def test_load_whisper_model_success(mock_load_model, model_name):
     "ml_client.speech_analysis.whisper.load_model",
     side_effect=RuntimeError("Test Load Fail"),
 )
-def test_load_whisper_model_failure(mock_load_model, model_name):
+def test_load_whisper_model_failure(model_name):
     """Test if the model load failure raises the expected RuntimeError."""
     with pytest.raises(RuntimeError) as excinfo:
         speech_analysis.load_whisper_model(model_name)
