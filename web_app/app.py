@@ -10,18 +10,19 @@ Full version with:
 
 # pylint: disable=import-error
 
+import io
 import uuid
 import os
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+import requests
 
 from flask import (
     Flask,
     render_template,
     request,
     jsonify,
-    g,
     redirect,
     url_for,
     flash,
@@ -48,6 +49,7 @@ MONGO_DB = os.getenv("MONGO_DB")
 MONGO_USER = os.getenv("MONGO_USER")
 MONGO_PASS = os.getenv("MONGO_PASS")
 SECRET_KEY = os.getenv("SECRET_KEY")
+ML_CLIENT_URL = os.getenv("ML_CLIENT_URL")
 
 mongo_client = None
 db = None
@@ -104,7 +106,7 @@ def create_default_secret(db_connection):
                 "secret_id": str(uuid.uuid4()),
                 "secret_phrase": DEFAULT_SECRET_PHRASE,
                 "hint": DEFAULT_SECRET_HINT,
-                "created_at": datetime.now().isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
                 "wrong_guesses": 0,
                 "solved_at": None,
             }
@@ -125,7 +127,7 @@ def mark_secret_solved(db_connection, secret_id):
     try:
         db_connection.secrets.update_one(
             {"secret_id": secret_id},
-            {"$set": {"solved_at": datetime.now().isoformat()}},
+            {"$set": {"solved_at": datetime.now(timezone.utc).isoformat()}},
         )
         return True
     except Exception as e:
@@ -158,7 +160,7 @@ def create_new_secret(db_connection, secret_phrase, hint, creator_uuid):
             "secret_id": str(uuid.uuid4()),
             "secret_phrase": secret_phrase,
             "hint": hint,
-            "created_at": datetime.now().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "created_by": creator_uuid,
             "wrong_guesses": 0,
             "solved_at": None,
@@ -184,7 +186,7 @@ def get_or_create_state(user_uuid: str, db_connection, active_secret):
         }
 
     current_secret_id = active_secret.get("secret_id")
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
 
     try:
         game_state = db_connection.game_states.find_one({"user_uuid": user_uuid})
@@ -303,7 +305,7 @@ def update_game_state(user_uuid: str, db_connection, state_updates: dict):
         return False
 
     try:
-        state_updates["updated_at"] = datetime.now().isoformat()
+        state_updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         db_connection.game_states.update_one(
             {"user_uuid": user_uuid}, {"$set": state_updates}, upsert=True
         )
@@ -445,7 +447,7 @@ def create_app():
                             password, method="pbkdf2:sha256"
                         ),
                         "user_uuid": user_uuid,
-                        "created_at": datetime.now().isoformat(),
+                        "created_at": datetime.now(timezone.utc).isoformat(),
                     }
                     db.users.insert_one(user_doc)
 
@@ -645,9 +647,11 @@ def create_app():
 
         locked_until = None
         if state["attempts_left"] == 0:
-            locked_until = (datetime.now() + timedelta(hours=24)).isoformat()
+            locked_until = (
+                datetime.now(timezone.utc) + timedelta(hours=24)
+            ).isoformat()
             state_update["locked_until"] = locked_until
-            msg = "Incorrect guess. No attempts left. You can try again in 24 hours."
+            msg = "Incorrect guess. No attempts left."
         else:
             msg = "Incorrect guess. Try again!"
 
@@ -745,7 +749,7 @@ def create_app():
                         "user_uuid": current_user.user_uuid,
                         "username": current_user.username,
                         "metadata": metadata,
-                        "timestamp": datetime.now().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
                 )
                 return jsonify({"message": "Metadata saved successfully"}), 200
@@ -831,9 +835,9 @@ def create_app():
     return app_instance
 
 
-# -------------------------
-# PLACEHOLDER ML INTEGRATION (NEED TO REPLACE)
-# -------------------------
+# ML integration
+
+
 def transcribe_audio(file_storage) -> str:
     """
     Placeholder transcription function.
@@ -841,12 +845,42 @@ def transcribe_audio(file_storage) -> str:
     - `file_storage` is a Werkzeug FileStorage object.
     - In the real project, this should call your ML client or an external STT service.
     """
-    # Read raw bytes if you need to forward them:
-    # audio_bytes = file_storage.read()
+    user_id = current_user.user_uuid
+    if not ML_CLIENT_URL:
+        raise RuntimeError("Environment variable ML_CLIENT_URL is not set")
 
-    # For now, return a hard-coded string to prove the pipeline works.
-    # Replace this with real transcription logic later.
-    return "open sesame"
+    # Read the file content once and reset pointer
+    file_storage.seek(0)
+    audio_bytes = file_storage.read()
+
+    payload = {"user_id": user_id}
+
+    # Try up to 2 times
+    for attempt in range(2):
+        # Create a fresh BytesIO object for each attempt
+        file_obj = io.BytesIO(audio_bytes)
+        files = {"audio": (file_storage.filename, file_obj, file_storage.content_type)}
+
+        try:
+            resp = requests.post(
+                f"{ML_CLIENT_URL}/transcribe", files=files, data=payload, timeout=120
+            )
+            resp.raise_for_status()
+            ml_result = resp.json()
+
+            success = ml_result.get("transcription_success", False)
+            guess = ml_result.get("transcription", "")
+
+            if success:
+                return guess
+
+        except requests.RequestException as e:
+            if attempt == 1:
+                return "Transcription Failed"
+            continue
+
+    # Fallback
+    return "Transcription Failed"
 
 
 if __name__ == "__main__":

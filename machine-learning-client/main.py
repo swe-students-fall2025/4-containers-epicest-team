@@ -5,64 +5,89 @@ Machine learning client which records speech, transcribes it, and writes to data
 from __future__ import annotations
 
 import os
-from pathlib import Path
-
+import datetime
+import traceback
+import shutil
+import uuid
 import pymongo
-import sounddevice as sd
-from dotenv import load_dotenv
+from fastapi import FastAPI, UploadFile, Form, File
 
-from ml_client.recorder import record_clip
-from ml_client.speech_analysis import transcribe_audio
+from ml_client import speech_analysis
 
-PARENT_DIR = Path(__file__).resolve().parent.parent
-ENV_PATH = PARENT_DIR / ".env"
-load_dotenv(dotenv_path=ENV_PATH)
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB")
+AUDIO_DIR = os.getenv("AUDIO_DIR")
 MONGO_USER = os.getenv("MONGO_USER")
 MONGO_PASS = os.getenv("MONGO_PASS")
 
+os.makedirs(AUDIO_DIR, exist_ok=True)
+app = FastAPI(title="ML Client")
 
-def main(user_id: str = "usage_test") -> None:
-    """Method to run machine learning client"""
+try:
+    mongo_client = pymongo.MongoClient(
+        MONGO_URI, username=MONGO_USER, password=MONGO_PASS
+    )
+    mongo_db = mongo_client[MONGO_DB]
+except (TypeError, AttributeError, pymongo.errors.PyMongoError) as e:
+    print("Could not connect to MongoDB at startup:", e)
+    mongo_client = None
+    mongo_db = None
+
+app.state.model = None
+
+
+@app.on_event("startup")
+def startup_event():
+    """Load model on start of ml client and keep in memory"""
+    try:
+        print("[ml-client] Loading model at startup...")
+        app.state.model = speech_analysis.load_whisper_model()
+        print("[ml-client] Model loaded.")
+    except RuntimeError as e:
+        print("[ml-client] Model load failed:", e)
+        traceback.print_exc()
+        app.state.model = None
+
+
+@app.post("/transcribe")
+def transcribe(audio: UploadFile = File(...), user_id: str = Form(...)):
+    """
+    Endpoint that transcribes audio recording \
+            and stores metadata into MongoDB. 
+    Returns transcription and metadata and records it in DB 
+    """
+    filename = f"{uuid.uuid4()}.webm"
+    temp_path = os.path.join(AUDIO_DIR, filename)
+
+    # Save uploaded file
+    with open(temp_path, "wb") as f:
+        shutil.copyfileobj(audio.file, f)
+
+    # Transcribe
+    words, success = speech_analysis.transcribe_audio(temp_path, app.state.model)
+    doc = {
+        "user_id": user_id,
+        "audio_path": temp_path,
+        "transcription_text": words,
+        "transcription_words": words.split(),
+        "transcription_success": success,
+        "timestamp": datetime.datetime.utcnow(),
+    }
 
     try:
-        client = pymongo.MongoClient(
-            MONGO_URI, username=MONGO_USER, password=MONGO_PASS
-        )
-        db = client[MONGO_DB]
-    except (TypeError, AttributeError, pymongo.errors.PyMongoError) as e:
-        print("Could not connection to database", e)
-
-    # Get default sample rate from input device
-    try:
-        sample_rate = int(sd.query_devices(sd.default.device[0])["default_samplerate"])
-        info = record_clip(sample_rate=sample_rate)
-    except sd.PortAudioError as e:
-        print("Cannot access microphone for recording", e)
-        info = record_clip()
-    print("\n[main] Recording finished.")
-    print("[main] File:", info["file_path"])
-    print("[main] Duration (s):", info["duration_seconds"])
-    print("[main] Sample rate:", info["sample_rate"])
-    print("[main] Channels:", info["channels"])
-
-    transcription, transcription_success = transcribe_audio(info["file_path"])
-    info["transcription_success"] = transcription_success
-    info["transcription"] = transcription
-    info["user_id"] = user_id
-    print(f"Transcription: {info['transcription']}")
-    print(f"Transcription Success: {info['transcription_success']}")
-    try:
-        db["attempts"].insert_one(info)
+        mongo_db["attempts"].insert_one(doc)
     except (
         UnboundLocalError,
         TypeError,
         AttributeError,
         pymongo.errors.PyMongoError,
     ) as e:
-        print("Could not write to database", e)
+        print("[ml-client] Mongo insert failed:", e)
 
-
-if __name__ == "__main__":
-    main()
+    # 4. Return summary to web app
+    return {
+        "transcription": words,
+        "transcription_words": doc["transcription_words"],
+        "transcription_success": success,
+        "audio_path": temp_path,
+    }
