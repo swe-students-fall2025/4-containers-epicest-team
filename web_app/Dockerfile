@@ -13,6 +13,19 @@ RUN pip install pipenv
 COPY Pipfile Pipfile.lock ./
 RUN pipenv install --system --deploy
 
+# Install OpenSSL (needed for certificate generation)
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Create directory for certificates
+RUN mkdir -p /certs
+
+# Generate self-signed certificate and private key at build time
+RUN openssl req -x509 -nodes -days 365 \
+    -newkey rsa:2048 \
+    -keyout /certs/key.pem \
+    -out /certs/cert.pem \
+    -subj "/CN=localhost"
+
 #copy the rest of the app code
 COPY . .
 

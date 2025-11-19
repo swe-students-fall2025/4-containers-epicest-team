@@ -47,5 +47,6 @@ def transcribe_audio(audio_path: str, model) -> tuple[list[str], bool]:
             .strip(),
             True,
         )
-    except (AttributeError, FileNotFoundError, ValueError, RuntimeError):
+    except (AttributeError, FileNotFoundError, ValueError, RuntimeError) as e:
+        print(e)
         return "Transcription Failed", False

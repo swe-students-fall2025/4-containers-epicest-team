@@ -10,6 +10,7 @@ Full version with:
 
 # pylint: disable=import-error
 
+import io
 import uuid
 import os
 from pathlib import Path
@@ -38,6 +39,7 @@ from flask_login import (
 )
 
 import pymongo
+import requests
 
 PARENT_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = PARENT_DIR / ".env"
@@ -397,10 +399,10 @@ def create_app():
                 return jsonify({"error": "Invalid file type"}), 400
 
             # Call the transcription helper
-            recognized_text = transcribe_audio(file_storage)
+            recognized_text, success = transcribe_audio(file_storage)
 
             # Optional: basic sanity check
-            if not recognized_text:
+            if not recognized_text or not success:
                 return jsonify({"error": "Transcription failed."}), 500
 
             return jsonify({"recognized_text": recognized_text}), 200
@@ -597,7 +599,7 @@ def create_app():
         state["last_guess"] = guess
 
         # Check correct guess
-        if guess.lower() == secret_phrase.lower():
+        if (secret_phrase.lower() in guess.lower()):
             state["last_result"] = "correct"
             state["can_create_secret"] = True
 
@@ -841,9 +843,9 @@ def transcribe_audio(file_storage) -> str:
     - `file_storage` is a Werkzeug FileStorage object.
     - In the real project, this should call your ML client or an external STT service.
     """
-    file_storage.read()
-    ml_url = os.getenv("ML_URL")
-    user_id = (current_user.user_uuid,)
+    file_storage.seek(0)
+    user_id = current_user.user_uuid
+    ML_URL = os.getenv("ML_URL")
     if not ML_URL:
         raise RuntimeError("Environment variable ML_URL is not set")
 
@@ -860,7 +862,7 @@ def transcribe_audio(file_storage) -> str:
         except requests.RequestException as e:
             ml_result = {
                 "transcription_success": False,
-                "guess": "Transcription Failed",
+                "transcription": None 
             }
 
         success = ml_result.get("transcription_success", False)
@@ -870,4 +872,4 @@ def transcribe_audio(file_storage) -> str:
 
 if __name__ == "__main__":
     flask_app = create_app()
-    flask_app.run(host="0.0.0.0", port=3000, debug=True)
+    flask_app.run(host="0.0.0.0", port=3000, debug=True, ssl_context=("/certs/cert.pem", "/certs/key.pem"))
