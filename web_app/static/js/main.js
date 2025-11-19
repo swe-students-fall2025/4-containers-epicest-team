@@ -57,6 +57,13 @@ async function uploadAudioToServer(blob) {
       body: formData,
     });
 
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await response.text();
+      console.error("Non-JSON response from server:", text);
+      throw new Error("Server returned non-JSON response (likely HTML error page).");
+    }
+
     const data = await response.json();
     console.log("upload-audio response:", data);
 
@@ -167,7 +174,7 @@ async function onRecordStart() {
     return;
   }
 
-  try{
+  try {
     // Request microphone access if not already granted
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 

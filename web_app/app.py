@@ -187,26 +187,30 @@ def create_app():
 
         Expected form field name: 'audio_file'
         """
-        if "audio_file" not in request.files:
-            return jsonify({"error": "No audio file uploaded."}), 400
+        try:
+            if "audio_file" not in request.files:
+                return jsonify({"error": "No audio file uploaded."}), 400
 
-        file_storage = request.files["audio_file"]
+            file_storage = request.files["audio_file"]
 
-        if not file_storage or file_storage.filename == "":
-            return jsonify({"error": "Empty audio file."}), 400
+            if not file_storage or file_storage.filename == "":
+                return jsonify({"error": "Empty audio file."}), 400
 
-        # Reject non-audio files
-        if not file_storage.mimetype.startswith("audio/"):
-            return jsonify({"error": "Invalid file type"}), 400
+            # Reject non-audio files
+            if not file_storage.mimetype.startswith("audio/"):
+                return jsonify({"error": "Invalid file type"}), 400
 
-        # Call the transcription helper
-        recognized_text = transcribe_audio(file_storage)
+            # Call the transcription helper
+            recognized_text = transcribe_audio(file_storage)
 
-        # Optional: basic sanity check
-        if not recognized_text:
-            return jsonify({"error": "Transcription failed."}), 500
+            # Optional: basic sanity check
+            if not recognized_text:
+                return jsonify({"error": "Transcription failed."}), 500
 
-        return jsonify({"recognized_text": recognized_text}), 200
+            return jsonify({"recognized_text": recognized_text}), 200
+        except Exception as e:
+            return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
 
     @app_instance.route("/register", methods=["GET", "POST"])
     def register():
