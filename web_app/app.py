@@ -47,6 +47,7 @@ MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB")
 MONGO_USER = os.getenv("MONGO_USER")
 MONGO_PASS = os.getenv("MONGO_PASS")
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 mongo_client = None
 db = None
@@ -335,14 +336,11 @@ def create_app():
     def inject_version():
         return {"version": int(time.time())}
 
-    # REQUIRED for sessions / Flask-Login / flash()
-    app_instance.config["SECRET_KEY"] = "dev-secret-change-me"
-    # -------------------------
-    # FLASK-LOGIN SETUP
-    # -------------------------
+    # Flask login setup
+    app_instance.config["SECRET_KEY"] = SECRET_KEY
     login_manager = LoginManager()
     login_manager.init_app(app_instance)
-    login_manager.login_view = "login"  # endpoint name for @login_required redirects
+    login_manager.login_view = "login"
 
     # initialize mongo
     mongo_client, db = init_mongo()
