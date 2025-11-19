@@ -49,9 +49,9 @@ def test_ml_client_startup_event_loads_model():
     """Test that the startup event attempts to load the model."""
     with patch("main.speech_analysis.load_whisper_model") as mock_load:
         # Import main again to trigger the
-        #startup event logic (if not done by FastAPI)
+        # startup event logic (if not done by FastAPI)
         # We manually call the decorated function
-        #since TestClient doesn't run startup events by default
+        # since TestClient doesn't run startup events by default
         startup_event()
         mock_load.assert_called_once()
 

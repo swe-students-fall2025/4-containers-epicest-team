@@ -22,6 +22,7 @@ def model_name():
     """Fixture for model name to ensure consistent model use."""
     return "small"
 
+
 @pytest.fixture
 def mock_whisper_model():
     """Mock the Whisper model object to control transcription output."""

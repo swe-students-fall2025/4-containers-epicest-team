@@ -82,7 +82,7 @@ def transcribe(audio: UploadFile = File(...), user_id: str = Form(...)):
     # 4. Return summary to web app
     return {
         "transcription": words,
-        "transcription_words": doc['transcription_words'],
+        "transcription_words": doc["transcription_words"],
         "transcription_success": success,
         "audio_path": temp_path,
     }
