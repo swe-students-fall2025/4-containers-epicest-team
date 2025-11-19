@@ -19,13 +19,17 @@ ENV_PATH = PARENT_DIR / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB")
+MONGO_USER = os.getenv("MONGO_USER")
+MONGO_PASS = os.getenv("MONGO_PASS")
 
 
 def main(user_id: str = "usage_test") -> None:
     """Method to run machine learning client"""
 
     try:
-        client = pymongo.MongoClient(MONGO_URI)
+        client = pymongo.MongoClient(
+            MONGO_URI, username=MONGO_USER, password=MONGO_PASS
+        )
         db = client[MONGO_DB]
     except (TypeError, AttributeError, pymongo.errors.PyMongoError) as e:
         print("Could not connection to database", e)

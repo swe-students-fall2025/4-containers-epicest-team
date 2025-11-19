@@ -1,0 +1,59 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/db:/data/db
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  machine-learning-client:
+    build:
+      context: ./machine-learning-client
+      dockerfile: Dockerfile
+    container_name: ml-client
+    environment:
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+      MONGO_USER: ${MONGO_USER}
+      MONGO_PASS: ${MONGO_PASS}
+    ports:
+      - "5001:5001"
+    depends_on:
+      - mongodb
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  web_app:
+    build:
+      context: ./web_app
+      dockerfile: Dockerfile
+    container_name: web-app
+    environment:
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB: ${MONGO_DB}
+      MONGO_USER: ${MONGO_USER}
+      MONGO_PASS: ${MONGO_PASS}
+      SECRET_KEY: ${SECRET_KEY}
+      ML_CLIENT_URL: http://machine-learning-client:5001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongodb
+      - machine-learning-client
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
