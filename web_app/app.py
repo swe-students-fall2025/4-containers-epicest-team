@@ -797,12 +797,33 @@ def transcribe_audio(file_storage) -> str:
     - `file_storage` is a Werkzeug FileStorage object.
     - In the real project, this should call your ML client or an external STT service.
     """
-    # Read raw bytes if you need to forward them:
-    # audio_bytes = file_storage.read()
+    file_storage.read()
+    ML_URL = os.getenv("ML_URL")
+    user_id = current_user.user_uuid,
+    if not ML_URL:
+        raise RuntimeError("Environment variable ML_URL is not set")
 
-    # For now, return a hard-coded string to prove the pipeline works.
-    # Replace this with real transcription logic later.
-    return "open sesame"
+    audio_bytes = file_storage.read()
+    payload = {"user_id":user_id}
+    for _ in range(2):
+        file_obj = io.BytesIO(audio_bytes)
+        files = {
+            "audio": file_obj 
+        }                
+        try:
+            resp = requests.post(
+                f"{ML_URL}/transcribe", files=files, data=payload, timeout=120
+            )
+            ml_result = resp.json()
+        except requests.RequestException as e:
+            ml_result = {
+                "transcription_success": False,
+                "guess": "Transcription Failed",
+            }
+
+        success = ml_result.get("transcription_success", False)
+        guess = ml_result.get("transcription", "")
+    return guess, success
 
 
 if __name__ == "__main__":
