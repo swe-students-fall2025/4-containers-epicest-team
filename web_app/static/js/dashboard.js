@@ -60,6 +60,9 @@ async function loadSummary() {
     const list = document.getElementById("stat-page-counts");
     list.innerHTML = "";
     data.page_counts.forEach((item) => {
+      if (item._id === null) {
+        item._id = "home";
+      }
       const li = document.createElement("li");
       li.textContent = `${item._id}: ${item.count}`;
       list.appendChild(li);
