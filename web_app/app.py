@@ -82,6 +82,13 @@ def create_app():
     """Application factory for password guess web app"""
     app_instance = Flask(__name__)
 
+    # Add cache-busting version (automatic)
+    import time
+
+    @app_instance.context_processor
+    def inject_version():
+        return {"version": int(time.time())}
+
     # REQUIRED for sessions / Flask-Login / flash()
     app_instance.config["SECRET_KEY"] = "dev-secret-change-me"
     # -------------------------
@@ -129,6 +136,37 @@ def create_app():
     # -------------------------
     # AUTH ROUTES
     # -------------------------
+
+    @app_instance.route("/api/upload-audio", methods=["POST"])
+    @login_required
+    def upload_audio():
+        """
+        Accept an audio file from the browser, run speech-to-text,
+        and return the recognized text.
+
+        Expected form field name: 'audio_file'
+        """
+        if "audio_file" not in request.files:
+            return jsonify({"error": "No audio file uploaded."}), 400
+
+        file_storage = request.files["audio_file"]
+
+        if not file_storage or file_storage.filename == "":
+            return jsonify({"error": "Empty audio file."}), 400
+
+        # Reject non-audio files
+        if not file_storage.mimetype.startswith("audio/"):
+            return jsonify({"error": "Invalid file type"}), 400
+
+        # Call the transcription helper
+        recognized_text = transcribe_audio(file_storage)
+
+        # Optional: basic sanity check
+        if not recognized_text:
+            return jsonify({"error": "Transcription failed."}), 500
+
+        return jsonify({"recognized_text": recognized_text}), 200
+
     @app_instance.route("/register", methods=["GET", "POST"])
     def register():
         """User registration: simple username + password."""
@@ -337,6 +375,24 @@ def create_app():
         )
 
     return app_instance
+
+
+# -------------------------
+# PLACEHOLDER ML INTEGRATION (NEED TO REPLACE)
+# -------------------------
+def transcribe_audio(file_storage) -> str:
+    """
+    Placeholder transcription function.
+
+    - `file_storage` is a Werkzeug FileStorage object.
+    - In the real project, this should call your ML client or an external STT service.
+    """
+    # Read raw bytes if you need to forward them:
+    # audio_bytes = file_storage.read()
+
+    # For now, return a hard-coded string to prove the pipeline works.
+    # Replace this with real transcription logic later.
+    return "example guess from audio"
 
 
 if __name__ == "__main__":

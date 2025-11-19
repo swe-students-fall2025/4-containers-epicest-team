@@ -60,7 +60,7 @@ The web app must be built using the Python [flask](https://palletsprojects.com/p
 - Unit tests using `pytest` and [pytest-flask](https://pytest-flask.readthedocs.io/en/latest/) must be written for the web app code that provide at least 80% code coverage of the server code.
 - The web app must have a Continuous Integration / (CI) workflow using [GitHub Actions](https://github.com/features/actions) that automatically builds, tests the updated subsystem every time a pull request is approved and code is merged into the `main` branch.
 - Like the other parts, the web app must run within its own Docker container.
-- Put all code for this subsystem within the `web-app` subdirectory of this repository.
+- Put all code for this subsystem within the `web_app` subdirectory of this repository.
 
 ## Developer workflow
 
@@ -136,7 +136,7 @@ All developers are expected to participate in reviewing and approving teammates'
 
 ### Code linting and formatting
 
-A [GitHub Actions workflow script](./.github/workflows/lint.yml) is included in this repository that will automatically run the `pylint` linter and the `black` formatter in both the `web-app` and `machine-learning-client` subdirectories to check the code in every pull request for its adherence to the proper code conventions. If the code does not pass such a check, the pull request must not be approved or merged.
+A [GitHub Actions workflow script](./.github/workflows/lint.yml) is included in this repository that will automatically run the `pylint` linter and the `black` formatter in both the `web_app` and `machine-learning-client` subdirectories to check the code in every pull request for its adherence to the proper code conventions. If the code does not pass such a check, the pull request must not be approved or merged.
 
 Due to its general-purpose design, and the fact that it checks all code the same way, regardless of whether that code is part of the web app, machine learning client, or other subsystem, **the given workflow script may not be appropriate for all projects**. You are welcome to modify it as necessary to suit your project's needs, as long as the spirit of the check remains the same.
 

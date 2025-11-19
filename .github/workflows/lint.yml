@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         # repeat same job for each subsystem in the following subdirectories
-        subdir: [web-app, machine-learning-client]
+        subdir: [web_app, machine-learning-client]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
