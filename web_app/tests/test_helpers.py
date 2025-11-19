@@ -5,7 +5,7 @@ Test MongoDB helper functions.
 # pylint: skip-file
 
 from unittest.mock import MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Import the helper functions we're testing
 from web_app.app import (
@@ -250,7 +250,7 @@ class TestGetOrCreateState:
     ):
         """get_or_create_state with expired lockout should restore attempts."""
         game_state["attempts_left"] = 0
-        game_state["locked_until"] = (datetime.now() - timedelta(hours=1)).isoformat()
+        game_state["locked_until"] = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
         mock_db.game_states.find_one.return_value = game_state
         mock_db.game_states.update_one.return_value = MagicMock()
 
@@ -264,7 +264,7 @@ class TestGetOrCreateState:
     ):
         """get_or_create_state with active lockout should keep 0 attempts."""
         game_state["attempts_left"] = 0
-        game_state["locked_until"] = (datetime.now() + timedelta(hours=1)).isoformat()
+        game_state["locked_until"] = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
         mock_db.game_states.find_one.return_value = game_state
 
         result = get_or_create_state("test-user-uuid-123", mock_db, active_secret)
