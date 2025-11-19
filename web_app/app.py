@@ -46,7 +46,7 @@ load_dotenv(dotenv_path=ENV_PATH)
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB = os.getenv("MONGO_DB")
 MONGO_USER = os.getenv("MONGO_USER")
-MONGO_PASS= os.getenv("MONGO_PASS")
+MONGO_PASS = os.getenv("MONGO_PASS")
 
 mongo_client = None
 db = None
@@ -54,11 +54,14 @@ db = None
 DEFAULT_SECRET_PHRASE = "Open Sesame"
 DEFAULT_SECRET_HINT = "A classic phrase to unlock a secret"
 
+
 def init_mongo():
     """Initialize MongoDB connection"""
     if MONGO_URI and MONGO_DB and MONGO_USER and MONGO_PASS:
         try:
-            mongo_client = pymongo.MongoClient(MONGO_URI, username=MONGO_USER, password=MONGO_PASS)
+            mongo_client = pymongo.MongoClient(
+                MONGO_URI, username=MONGO_USER, password=MONGO_PASS
+            )
             db = mongo_client[MONGO_DB]
             print(f"Connected to MongoDB: {MONGO_DB}")
             return mongo_client, db
@@ -74,12 +77,11 @@ def get_active_secret(db_connection):
     """Get the current active secret."""
     if db_connection is None:
         return None
-    
+
     try:
         # Find a secret that hasn't been solved yet
         active_secret = db_connection.secrets.find_one(
-            {"solved_at": None},
-            sort=[("created_at", pymongo.ASCENDING)]
+            {"solved_at": None}, sort=[("created_at", pymongo.ASCENDING)]
         )
         return active_secret
     except Exception as e:
@@ -91,7 +93,7 @@ def create_default_secret(db_connection):
     """Create a default secret if no active secret exists."""
     if db_connection is None:
         return None
-    
+
     try:
         # Check if any active secrets exist
         active_secret = db_connection.secrets.find_one({"solved_at": None})
@@ -118,11 +120,11 @@ def mark_secret_solved(db_connection, secret_id):
     """Mark a secret as solved."""
     if db_connection is None:
         return False
-    
+
     try:
         db_connection.secrets.update_one(
             {"secret_id": secret_id},
-            {"$set": {"solved_at": datetime.now().isoformat()}}
+            {"$set": {"solved_at": datetime.now().isoformat()}},
         )
         return True
     except Exception as e:
@@ -134,11 +136,10 @@ def increment_wrong_guesses(db_connection, secret_id):
     """Increment the wrong guess count for a secret."""
     if db_connection is None:
         return False
-    
+
     try:
         db_connection.secrets.update_one(
-            {"secret_id": secret_id},
-            {"$inc": {"wrong_guesses": 1}}
+            {"secret_id": secret_id}, {"$inc": {"wrong_guesses": 1}}
         )
         return True
     except Exception as e:
@@ -150,7 +151,7 @@ def create_new_secret(db_connection, secret_phrase, hint, creator_uuid):
     """Create a new secret."""
     if db_connection is None:
         return None
-    
+
     try:
         new_secret = {
             "secret_id": str(uuid.uuid4()),
@@ -168,7 +169,6 @@ def create_new_secret(db_connection, secret_phrase, hint, creator_uuid):
         return None
 
 
-
 def get_or_create_state(user_uuid: str, db_connection, active_secret):
     """Fetch or initialize the player's game state from MongoDB."""
     if db_connection is None or active_secret is None:
@@ -181,17 +181,17 @@ def get_or_create_state(user_uuid: str, db_connection, active_secret):
             "can_create_secret": False,
             "locked_until": None,
         }
-    
+
     current_secret_id = active_secret.get("secret_id")
     now = datetime.now()
-    
+
     try:
         game_state = db_connection.game_states.find_one({"user_uuid": user_uuid})
-        
+
         if game_state:
             # Check if the secret has changed since user last played
             stored_secret_id = game_state.get("current_secret_id")
-            
+
             if stored_secret_id != current_secret_id:
                 reset_state = {
                     "current_secret_id": current_secret_id,
@@ -203,8 +203,7 @@ def get_or_create_state(user_uuid: str, db_connection, active_secret):
                     "updated_at": now.isoformat(),
                 }
                 db_connection.game_states.update_one(
-                    {"user_uuid": user_uuid},
-                    {"$set": reset_state}
+                    {"user_uuid": user_uuid}, {"$set": reset_state}
                 )
                 return {
                     "attempts_left": 3,
@@ -214,11 +213,11 @@ def get_or_create_state(user_uuid: str, db_connection, active_secret):
                     "can_create_secret": False,
                     "locked_until": None,
                 }
-            
+
             # Same secret - check if user is locked out (< 24 hours since guesses ran out)
             locked_until_str = game_state.get("locked_until")
             attempts_left = game_state.get("attempts_left", 3)
-            
+
             if attempts_left == 0 and locked_until_str:
                 # User was locked out, check if 24 hours have passed since then
                 try:
@@ -233,21 +232,22 @@ def get_or_create_state(user_uuid: str, db_connection, active_secret):
                             "updated_at": now.isoformat(),
                         }
                         db_connection.game_states.update_one(
-                            {"user_uuid": user_uuid},
-                            {"$set": restore_state}
+                            {"user_uuid": user_uuid}, {"$set": restore_state}
                         )
                         return {
                             "attempts_left": 3,
                             "last_result": None,
                             "last_guess": None,
                             "current_secret_id": current_secret_id,
-                            "can_create_secret": game_state.get("can_create_secret", False),
+                            "can_create_secret": game_state.get(
+                                "can_create_secret", False
+                            ),
                             "locked_until": None,
                         }
                 except (ValueError, TypeError):
                     # Invalid timestamp, ignore and continue
                     pass
-            
+
             # Return existing state
             return {
                 "attempts_left": attempts_left,
@@ -271,10 +271,10 @@ def get_or_create_state(user_uuid: str, db_connection, active_secret):
                 "updated_at": now.isoformat(),
             }
             db_connection.game_states.insert_one(new_state)
-            
+
             # Create index on user_uuid for faster lookups
             db_connection.game_states.create_index("user_uuid", unique=True)
-            
+
             return {
                 "attempts_left": 3,
                 "last_result": None,
@@ -300,13 +300,11 @@ def update_game_state(user_uuid: str, db_connection, state_updates: dict):
     """Update game state in MongoDB."""
     if db_connection is None:
         return False
-    
+
     try:
         state_updates["updated_at"] = datetime.now().isoformat()
         db_connection.game_states.update_one(
-            {"user_uuid": user_uuid},
-            {"$set": state_updates},
-            upsert=True
+            {"user_uuid": user_uuid}, {"$set": state_updates}, upsert=True
         )
         return True
     except Exception as e:
@@ -348,7 +346,7 @@ def create_app():
 
     # initialize mongo
     mongo_client, db = init_mongo()
-    
+
     # Ensure there's an active secret
     if db is not None:
         create_default_secret(db)
@@ -364,7 +362,7 @@ def create_app():
                     return User(username, user_uuid=user_uuid)
             except Exception as e:
                 print(f"Error loading user from database: {e}")
-        
+
         return None
 
     @login_manager.unauthorized_handler
@@ -373,7 +371,6 @@ def create_app():
         if request.path.startswith("/api/"):
             return jsonify({"error": "Unauthorized"}), 401
         return redirect(url_for("login", next=request.url))
-
 
     # -------------------------
     # AUTH ROUTES
@@ -412,7 +409,6 @@ def create_app():
         except Exception as e:
             return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
-
     @app_instance.route("/register", methods=["GET", "POST"])
     def register():
         """User registration: simple username + password."""
@@ -425,39 +421,44 @@ def create_app():
                 return redirect(url_for("register"))
 
             if not username.replace("_", "").isalnum():
-                flash("Username can only contain letters, numbers, and underscores.", "error")
+                flash(
+                    "Username can only contain letters, numbers, and underscores.",
+                    "error",
+                )
                 return redirect(url_for("register"))
-            
+
             # Minimum password length for security
             if len(password) < 6:
                 flash("Password must be at least 6 characters long.", "error")
                 return redirect(url_for("register"))
-            
+
             if db is not None:
                 try:
                     existing_user = db.users.find_one({"username": username})
                     if existing_user:
                         flash("Username already taken.", "error")
                         return redirect(url_for("register"))
-                    
+
                     # Create new user in MongoDB with hashed password and UUID
                     user_uuid = str(uuid.uuid4())
                     user_doc = {
                         "username": username,
-                        "password_hash": generate_password_hash(password, method='pbkdf2:sha256'),
+                        "password_hash": generate_password_hash(
+                            password, method="pbkdf2:sha256"
+                        ),
                         "user_uuid": user_uuid,
                         "created_at": datetime.now().isoformat(),
                     }
                     db.users.insert_one(user_doc)
-                    
+
                     # Create unique index on username to prevent duplicates
                     db.users.create_index("username", unique=True)
-                    
+
                     user = User(username, user_uuid=user_uuid)
                     login_user(user)
                     flash("Account created and logged in!", "success")
                     return redirect(url_for("index"))
-                    
+
                 except pymongo.errors.DuplicateKeyError:
                     flash("Username already taken.", "error")
                     return redirect(url_for("register"))
@@ -485,7 +486,9 @@ def create_app():
             if db is not None:
                 try:
                     user_doc = db.users.find_one({"username": username})
-                    if user_doc and check_password_hash(user_doc["password_hash"], password):
+                    if user_doc and check_password_hash(
+                        user_doc["password_hash"], password
+                    ):
                         user_uuid = user_doc.get("user_uuid")
                         user = User(username, user_uuid=user_uuid)
                         login_user(user)
@@ -496,7 +499,7 @@ def create_app():
                     print(f"Error during login: {e}")
                     flash("An error occurred. Please try again.", "error")
                     return redirect(url_for("login"))
-            
+
             # Authentication failed
             flash("Invalid username or password.", "error")
             return redirect(url_for("login"))
@@ -534,22 +537,22 @@ def create_app():
     def game_state():
         """Return this player's current game state."""
         active_secret = get_active_secret(db)
-        
+
         # If no active secret exists, create the default one
         if active_secret is None:
             active_secret = create_default_secret(db)
-        
+
         if active_secret is None:
             return jsonify({"error": "No active secret available"}), 503
-        
+
         state = get_or_create_state(current_user.user_uuid, db, active_secret)
-        
+
         response = {
             **state,
             "hint": active_secret.get("hint", "No hint available"),
             "secret_id": active_secret.get("secret_id"),
         }
-        
+
         return jsonify(response), 200
 
     @app_instance.route("/api/submit-guess", methods=["POST"])
@@ -557,7 +560,7 @@ def create_app():
     def submit_guess():
         """
         Receive a guess from the frontend and apply game logic.
-        
+
         When correct:
         - Mark secret as solved
         - Give winner permission to create new secret
@@ -566,10 +569,10 @@ def create_app():
         guess = (data.get("guess", "")).strip()
 
         active_secret = get_active_secret(db)
-        
+
         if active_secret is None:
             return jsonify({"error": "No active secret available"}), 503
-        
+
         secret_id = active_secret.get("secret_id")
         secret_phrase = active_secret.get("secret_phrase")
 
@@ -599,18 +602,22 @@ def create_app():
         if guess.lower() == secret_phrase.lower():
             state["last_result"] = "correct"
             state["can_create_secret"] = True
-            
+
             # Mark secret as solved in the secrets collection
             mark_secret_solved(db, secret_id)
-            
+
             # Update state in database
-            update_game_state(current_user.user_uuid, db, {
-                "attempts_left": state["attempts_left"],
-                "last_result": state["last_result"],
-                "last_guess": state["last_guess"],
-                "can_create_secret": True,
-            })
-            
+            update_game_state(
+                current_user.user_uuid,
+                db,
+                {
+                    "attempts_left": state["attempts_left"],
+                    "last_result": state["last_result"],
+                    "last_guess": state["last_guess"],
+                    "can_create_secret": True,
+                },
+            )
+
             return (
                 jsonify(
                     {
@@ -627,17 +634,17 @@ def create_app():
 
         # Incorrect guess
         state["last_result"] = "incorrect"
-        
+
         # Increment wrong guesses for this secret
         increment_wrong_guesses(db, secret_id)
-        
+
         # If attempts reach zero, lock user out for 24 hours
         state_update = {
             "attempts_left": state["attempts_left"],
             "last_result": state["last_result"],
-            "last_guess": state["last_guess"]
+            "last_guess": state["last_guess"],
         }
-        
+
         locked_until = None
         if state["attempts_left"] == 0:
             locked_until = (datetime.now() + timedelta(hours=24)).isoformat()
@@ -645,7 +652,7 @@ def create_app():
             msg = "Incorrect guess. No attempts left. You can try again in 24 hours."
         else:
             msg = "Incorrect guess. Try again!"
-        
+
         # Update state in database
         update_game_state(current_user.user_uuid, db, state_update)
 
@@ -668,37 +675,51 @@ def create_app():
     @login_required
     def create_secret():
         """Allow winning player to create a new secret with a hint."""
-        user_state = db.game_states.find_one({"user_uuid": current_user.user_uuid}) if db is not None else None
-        
+        user_state = (
+            db.game_states.find_one({"user_uuid": current_user.user_uuid})
+            if db is not None
+            else None
+        )
+
         if not user_state or not user_state.get("can_create_secret", False):
-            return jsonify({"error": "You don't have permission to create a secret."}), 403
-        
+            return (
+                jsonify({"error": "You don't have permission to create a secret."}),
+                403,
+            )
+
         data = request.get_json() or {}
         new_phrase = (data.get("secret_phrase", "")).strip()
         hint = (data.get("hint", "")).strip()
 
         if not new_phrase:
             return jsonify({"error": "Secret phrase cannot be empty."}), 400
-        
+
         if not hint:
             return jsonify({"error": "Hint cannot be empty."}), 400
-        
+
         if len(new_phrase) < 3:
-            return jsonify({"error": "Secret phrase must be at least 3 characters."}), 400
-        
+            return (
+                jsonify({"error": "Secret phrase must be at least 3 characters."}),
+                400,
+            )
+
         if len(hint) < 5:
             return jsonify({"error": "Hint must be at least 5 characters."}), 400
 
         # Create the new secret
         new_secret = create_new_secret(db, new_phrase, hint, current_user.user_uuid)
-        
+
         if new_secret is None:
             return jsonify({"error": "Failed to create secret."}), 500
-        
+
         # Reset this user's can_create_secret flag
-        update_game_state(current_user.user_uuid, db, {
-            "can_create_secret": False,
-        })
+        update_game_state(
+            current_user.user_uuid,
+            db,
+            {
+                "can_create_secret": False,
+            },
+        )
 
         return (
             jsonify(
@@ -715,34 +736,36 @@ def create_app():
     def send_metadata():
         """Sends guess metadata to database."""
         metadata = request.get_json() or {}
-        
+
         if not metadata:
             return jsonify({"error": "Metadata cannot be empty"}), 400
 
         if db is not None:
             try:
-                db.metadata.insert_one({
-                    "user_uuid": current_user.user_uuid,
-                    "username": current_user.username,
-                    "metadata": metadata,
-                    "timestamp": datetime.now().isoformat()
-                })
+                db.metadata.insert_one(
+                    {
+                        "user_uuid": current_user.user_uuid,
+                        "username": current_user.username,
+                        "metadata": metadata,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
                 return jsonify({"message": "Metadata saved successfully"}), 200
             except Exception as e:
                 return jsonify({"error": f"Database error: {str(e)}"}), 500
         else:
-             return jsonify({"error": "Database not configured"}), 503
-        
+            return jsonify({"error": "Database not configured"}), 503
+
     @app_instance.route("/api/reset", methods=["POST"])
     @login_required
     def reset_game():
         """Reset game state for this player for the current secret."""
         # Get active secret
         active_secret = get_active_secret(db)
-        
+
         if active_secret is None:
             return jsonify({"error": "No active secret available"}), 503
-        
+
         reset_state = {
             "current_secret_id": active_secret.get("secret_id"),
             "attempts_left": 3,
@@ -752,7 +775,7 @@ def create_app():
             "locked_until": None,
         }
         update_game_state(current_user.user_uuid, db, reset_state)
-        
+
         return (
             jsonify(
                 {
