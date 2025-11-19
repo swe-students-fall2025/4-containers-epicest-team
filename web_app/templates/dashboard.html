@@ -1,16 +1,38 @@
 {% extends "base.html" %}
 
-{% block title %}Passphrase Guessr — Dashboard{% endblock %}
+{% block title %}Codebreaker — Dashboard{% endblock %}
 
 {% block content %}
 <section class="dashboard-card">
   <h1>Dashboard</h1>
-  <p>
-    This will show the aggregated data from the machine learning client:
-    number of attempts, success rate, timestamps, etc.
-  </p>
-  <p class="note-text">
-    For now, it's just a placeholder so routing and layout work.
-  </p>
-</section>
+    <p>This will show aggregated ML & usage data.</p>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h2>Total Metadata Entries</h2>
+          <p id="stat-total">–</p>
+        </div>
+
+        <div class="stat-card">
+          <h2>Your Entries</h2>
+          <p id="stat-user">–</p>
+        </div>
+
+        <div class="stat-card">
+          <h2>Last Event</h2>
+          <p id="stat-latest">–</p>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h2>Page Visit Breakdown</h2>
+          <ul id="stat-page-counts"></ul>
+        </div>
+      </div>
+
+      <p id="metadata-status" class="note-text"></p>
+    </section>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}
