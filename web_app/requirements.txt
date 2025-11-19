@@ -1,6 +1,0 @@
-flask
-flask-login
-pytest
-pylint
-black
-coverage
