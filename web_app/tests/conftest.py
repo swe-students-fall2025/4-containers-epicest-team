@@ -1,17 +1,16 @@
 # pylint: skip-file
 
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import MagicMock
-import pytest
 
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from web_app.app import create_app
-
 
 ## Establish environment for testing (mock database, mock client)
 

@@ -4,18 +4,18 @@ Test MongoDB helper functions.
 
 # pylint: skip-file
 
-from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
 # Import the helper functions we're testing
 from web_app.app import (
-    init_mongo,
-    get_active_secret,
     create_default_secret,
-    mark_secret_solved,
-    increment_wrong_guesses,
     create_new_secret,
+    get_active_secret,
     get_or_create_state,
+    increment_wrong_guesses,
+    init_mongo,
+    mark_secret_solved,
     update_game_state,
 )
 

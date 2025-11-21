@@ -9,7 +9,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - ./data/db:/data/db
+      - mongodb:/data/db
     networks:
       - app-network
     restart: unless-stopped
@@ -43,7 +43,7 @@ services:
       MONGO_USER: ${MONGO_USER}
       MONGO_PASS: ${MONGO_PASS}
       SECRET_KEY: ${SECRET_KEY}
-      ML_CLIENT_URL: http://machine-learning-client:5001
+      ML_URL: ${ML_CLIENT_URL}
     ports:
       - "3000:3000"
     depends_on:
@@ -56,3 +56,6 @@ services:
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  mongodb:

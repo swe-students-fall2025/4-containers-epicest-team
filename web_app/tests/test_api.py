@@ -386,16 +386,24 @@ class TestUploadAudioEndpoint:
 
     def test_upload_audio_valid_file(self, logged_in_client, monkeypatch):
         """POST /api/upload-audio with valid audio file should return transcription."""
+
         monkeypatch.setattr(
-            "web_app.app.transcribe_audio", lambda f: "transcribed text"
+            "web_app.app.transcribe_audio", lambda f: ("transcribed text", True)
         )
 
         fake_audio = io.BytesIO(b"fake audio data")
-        data = {"audio_file": (fake_audio, "audio.webm", "audio/webm")}
+        fake_audio.seek(0)
+        data = {"audio_file": (fake_audio, "recording.webm", "audio/webm")}
 
         response = logged_in_client.post(
             "/api/upload-audio", data=data, content_type="multipart/form-data"
         )
+        print(response)
+        print(logged_in_client.application.url_map)
+        print(response.status_code)
+        print(response.location)
+        print(response.data)
+
         assert response.status_code == 200
 
         json_data = response.get_json()

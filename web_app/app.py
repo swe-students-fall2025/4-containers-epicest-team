@@ -11,34 +11,24 @@ Full version with:
 # pylint: disable=import-error
 
 import io
-import uuid
 import os
-from pathlib import Path
+import uuid
 from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
+from pathlib import Path
+
+import pymongo
 import requests
-
-from flask import (
-    Flask,
-    render_template,
-    request,
-    jsonify,
-    redirect,
-    url_for,
-    flash,
-)
-from werkzeug.security import generate_password_hash, check_password_hash
-
+from dotenv import load_dotenv
+from flask import Flask, flash, g, jsonify, redirect, render_template, request, url_for
 from flask_login import (
     LoginManager,
     UserMixin,
+    current_user,
+    login_required,
     login_user,
     logout_user,
-    login_required,
-    current_user,
 )
-
-import pymongo
+from werkzeug.security import check_password_hash, generate_password_hash
 
 PARENT_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = PARENT_DIR / ".env"
@@ -399,10 +389,10 @@ def create_app():
                 return jsonify({"error": "Invalid file type"}), 400
 
             # Call the transcription helper
-            recognized_text = transcribe_audio(file_storage)
+            recognized_text, success = transcribe_audio(file_storage)
 
             # Optional: basic sanity check
-            if not recognized_text:
+            if not recognized_text or not success:
                 return jsonify({"error": "Transcription failed."}), 500
 
             return jsonify({"recognized_text": recognized_text}), 200
@@ -599,7 +589,7 @@ def create_app():
         state["last_guess"] = guess
 
         # Check correct guess
-        if guess.lower() == secret_phrase.lower():
+        if secret_phrase.lower() in guess.lower():
             state["last_result"] = "correct"
             state["can_create_secret"] = True
 
@@ -845,9 +835,11 @@ def transcribe_audio(file_storage) -> str:
     - `file_storage` is a Werkzeug FileStorage object.
     - In the real project, this should call your ML client or an external STT service.
     """
+    file_storage.seek(0)
     user_id = current_user.user_uuid
-    if not ML_CLIENT_URL:
-        raise RuntimeError("Environment variable ML_CLIENT_URL is not set")
+    ML_URL = os.getenv("ML_URL")
+    if not ML_URL:
+        raise RuntimeError("Environment variable ML_URL is not set")
 
     # Read the file content once and reset pointer
     file_storage.seek(0)
@@ -875,9 +867,7 @@ def transcribe_audio(file_storage) -> str:
                 return guess
 
         except requests.RequestException as e:
-            if attempt == 1:
-                return "Transcription Failed"
-            continue
+            ml_result = {"transcription_success": False, "transcription": None}
 
     # Fallback
     return "Transcription Failed"
@@ -885,4 +875,9 @@ def transcribe_audio(file_storage) -> str:
 
 if __name__ == "__main__":
     flask_app = create_app()
-    flask_app.run(host="0.0.0.0", port=3000, debug=True)
+    flask_app.run(
+        host="0.0.0.0",
+        port=3000,
+        debug=True,
+        ssl_context=("/certs/cert.pem", "/certs/key.pem"),
+    )
