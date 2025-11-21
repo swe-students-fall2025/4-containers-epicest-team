@@ -3,8 +3,7 @@ FROM python:3.10-slim
 # Keep Python from writing .pyc files and use unbuffered output
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-# Server and FS setup
-ENV MONGO_URI mongodb://mongo:27017
+# FS setup
 ENV AUDIO_DIR /tmp/audio_uploads
 # Install system dependencies needed for sounddevice / soundfile
 RUN apt-get update && \
@@ -13,12 +12,25 @@ RUN apt-get update && \
         libsndfile1 \
         ffmpeg && \
     rm -rf /var/lib/apt/lists/*
+
+# Install pipenv
+RUN pip install --no-cache-dir pipenv
+
 # Set the working directory inside the container
 WORKDIR /app
+
+# Set PYTHONPATH so tests can import modules
+ENV PYTHONPATH=/app
+
+# Copy Pipfile and Pipfile.lock first
+COPY Pipfile Pipfile.lock ./
+
+# Install dependencies using pipenv
+RUN pipenv install --deploy --system
+
 # Copy the rest of the ML client code
 COPY . .
 
-RUN pip install  --no-cache-dir -r requirements.txt
 RUN mkdir -p ${AUDIO_DIR}
 
 EXPOSE 5001
