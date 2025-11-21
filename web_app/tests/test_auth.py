@@ -5,8 +5,9 @@ Test web app registration, login, logout, and authorization.
 # pylint: skip-file
 
 from unittest.mock import MagicMock
-from werkzeug.security import generate_password_hash
+
 import pymongo.errors
+from werkzeug.security import generate_password_hash
 
 
 class TestRegisterRoute:

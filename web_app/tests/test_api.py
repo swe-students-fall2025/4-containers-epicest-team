@@ -393,9 +393,7 @@ class TestUploadAudioEndpoint:
 
         fake_audio = io.BytesIO(b"fake audio data")
         fake_audio.seek(0)
-        data = {
-                "audio_file": (fake_audio, "recording.webm", "audio/webm")
-        }
+        data = {"audio_file": (fake_audio, "recording.webm", "audio/webm")}
 
         response = logged_in_client.post(
             "/api/upload-audio", data=data, content_type="multipart/form-data"

@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+
 from ml_client import speech_analysis
 
 # Mock Whisper's behavior for transcription tests
