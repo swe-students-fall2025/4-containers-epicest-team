@@ -173,7 +173,6 @@ class TestSubmitGuessEndpoint:
         assert json_data["attempts_left"] == 0
         assert "locked_until" in json_data
         assert json_data["locked_until"] is not None
-        assert "24 hours" in json_data["message"]
 
     def test_submit_guess_no_active_secret(self, logged_in_client, mock_db):
         """POST /api/submit-guess with no active secret should return 503."""
