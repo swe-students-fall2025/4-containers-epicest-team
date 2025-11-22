@@ -12,6 +12,7 @@ Full version with:
 
 import io
 import os
+import traceback
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -389,7 +390,8 @@ def create_app():
                 return jsonify({"error": "Invalid file type"}), 400
 
             # Call the transcription helper
-            recognized_text, success = transcribe_audio(file_storage)
+            result = transcribe_audio(file_storage)
+            recognized_text, success = result
 
             # Optional: basic sanity check
             if not recognized_text or not success:
@@ -397,6 +399,7 @@ def create_app():
 
             return jsonify({"recognized_text": recognized_text}), 200
         except Exception as e:
+            traceback.print_exc()
             return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
     @app_instance.route("/register", methods=["GET", "POST"])
@@ -835,16 +838,14 @@ def transcribe_audio(file_storage) -> str:
     - `file_storage` is a Werkzeug FileStorage object.
     - In the real project, this should call your ML client or an external STT service.
     """
-    file_storage.seek(0)
     user_id = current_user.user_uuid
-    ML_URL = os.getenv("ML_URL")
-    if not ML_URL:
-        raise RuntimeError("Environment variable ML_URL is not set")
+
+    if not os.getenv("ML_CLIENT_URL"):
+        raise RuntimeError("Environment variable ML_CLIENT_URL is not set")
 
     # Read the file content once and reset pointer
     file_storage.seek(0)
     audio_bytes = file_storage.read()
-
     payload = {"user_id": user_id}
 
     # Try up to 2 times
@@ -852,25 +853,24 @@ def transcribe_audio(file_storage) -> str:
         # Create a fresh BytesIO object for each attempt
         file_obj = io.BytesIO(audio_bytes)
         files = {"audio": (file_storage.filename, file_obj, file_storage.content_type)}
-
         try:
             resp = requests.post(
                 f"{ML_CLIENT_URL}/transcribe", files=files, data=payload, timeout=120
             )
+
             resp.raise_for_status()
             ml_result = resp.json()
-
             success = ml_result.get("transcription_success", False)
             guess = ml_result.get("transcription", "")
 
             if success:
-                return guess
+                return guess, success
 
         except requests.RequestException as e:
             ml_result = {"transcription_success": False, "transcription": None}
 
     # Fallback
-    return "Transcription Failed"
+    return "Transcription Failed", False
 
 
 if __name__ == "__main__":
